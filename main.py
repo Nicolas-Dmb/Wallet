@@ -1,5 +1,8 @@
+from db import configure_database
+
+
 def main():
-    print("Hello from wallet!")
+    configure_database()
 
 
 if __name__ == "__main__":
