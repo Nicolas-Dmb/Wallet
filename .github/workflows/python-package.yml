@@ -26,6 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
+        uv venv
         uv pip install -r pyproject.toml
 
     - name: Test with pytest
