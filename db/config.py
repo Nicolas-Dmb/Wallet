@@ -1,6 +1,6 @@
 import sqlite3
 
-TABLES = ["Price", "Category", "Place", "Asset", "Transaction", "History"]
+TABLES = ["Price", "Category", "Place", "Asset", "Transactions", "History"]
 TABLES_ROWS = {
     "Price": ["id", "value", "currency"],
     "Category": ["id", "title", "description"],
@@ -111,16 +111,11 @@ def _configure_tables(conn: sqlite3.Connection, table: str) -> None:
 
 
 def _update_tables(conn: sqlite3.Connection, table: str) -> None:
-    table_info = conn.execute(f"PRAGMA table_info({table})").fetchall()
-    need_update = False
-    for row in TABLES_ROWS[table]:
-        if row not in [info[1] for info in table_info]:
-            need_update = True
-    for info in table_info:
-        if info[1] not in TABLES_ROWS[table]:
-            need_update = True
+    rows = conn.execute(f"PRAGMA table_info('{table.lower()}')").fetchall()
+    have = {r[1] for r in rows}
+    want = set(TABLES_ROWS[table])
 
-    if not need_update:
+    if want == have:
         return
 
     _configure_tables(conn, table)
