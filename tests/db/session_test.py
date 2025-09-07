@@ -1,4 +1,4 @@
-from db.session import Db
+from wallet.db.session import Db
 
 
 def test_should_return_db_connexion(mocker):

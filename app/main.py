@@ -1,4 +1,4 @@
-from db import configure_database
+from wallet.db import configure_database
 
 
 def main():

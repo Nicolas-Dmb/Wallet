@@ -6,7 +6,7 @@ TABLES_ROWS = {
     "Category": ["id", "title", "description"],
     "Place": ["id", "name", "description"],
     "Asset": ["id", "ticker", "name", "type", "categorys"],
-    "Transaction": ["id", "asset", "date", "type", "price", "place"],
+    "Transactions": ["id", "asset", "date", "type", "price", "place"],
     "History": ["id", "asset", "price", "date"],
 }
 
@@ -78,7 +78,7 @@ def _configure_tables(conn: sqlite3.Connection, table: str) -> None:
                 );
                 """
             )
-        case "Transaction":
+        case "Transactions":
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS transactions (
