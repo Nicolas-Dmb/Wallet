@@ -1,6 +1,6 @@
 import sqlite3
 
-from wallet.db.config import (
+from mywallet.db.config import (
     TABLES,
     TABLES_ROWS,
     _configure_tables,
