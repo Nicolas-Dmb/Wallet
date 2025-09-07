@@ -1,8 +1,12 @@
 import datetime
+import logging
 from dataclasses import dataclass
 from typing import Any
 
-from mywallet.wallet.model import Asset, Place, Price, TransactionType
+import streamlit as st
+
+from mywallet.wallet.model import Asset, Place, Price, TransactionRaw, TransactionType
+from mywallet.wallet.repository import add_transaction
 
 
 @dataclass
@@ -19,8 +23,13 @@ class TransactionState:
         if self.current_question < self.total_questions:
             self.current_question += 1
         else:
-            # TODO : Enregristrer la transaction
-            pass
+            transaction = self._assert_complete()
+            try:
+                add_transaction(transaction)
+            except Exception as e:
+                st.error("Erreur lors de l'enregistrement de la transaction")
+                logging.error(f"Error while adding transaction: {e}")
+                raise e
 
     def previous_question(self):
         if self.current_question > 0:
@@ -50,3 +59,19 @@ class TransactionState:
                 raise ValueError("Invalid question index")
         self._next_question()
         return self.current_question
+
+    def _assert_complete(self) -> TransactionRaw:
+        assert (
+            self.place is not None
+            and self.price is not None
+            and self.type is not None
+            and self.date is not None
+            and self.asset is not None
+        )
+        return TransactionRaw(
+            place=self.place,
+            price=self.price,
+            type=self.type,
+            date=self.date,
+            asset=self.asset,
+        )
