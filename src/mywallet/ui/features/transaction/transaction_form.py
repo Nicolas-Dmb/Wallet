@@ -2,7 +2,7 @@ from typing import Any
 
 import streamlit as st
 
-from mywallet.ui.utils import Progress_bar, new_asset, new_place, searchbar
+from mywallet.ui.utils import Progress_bar, new_asset, new_place
 from mywallet.wallet.model import RawPrice
 from mywallet.wallet.repository import get_assets, get_places
 
@@ -21,8 +21,13 @@ def transaction_form():
         case 0:
             _transaction_type()
         case 1:
+            if st.button("retour"):
+                state.previous_question()
             _transaction_asset()
         case 2 | 3 | 4:
+            if st.button("retour"):
+                state.previous_question()
+            state.previous_question()
             _transaction_data()
         case _:
             st.success("Transaction enregistrée !")
@@ -41,14 +46,19 @@ def _transaction_asset() -> None:
     assets = list(get_assets())
     st.session_state["assets"] = assets
     col1, col2 = st.columns(2)
-    with col1:
-        searchbar(assets, "selected_asset")
-    with col2:
-        if state.type == "buy":
-            if st.button("Créer un nouvel actif"):
-                new_asset()
-    if "selected_asset" in st.session_state:
-        _update(st.session_state["selected_asset"])
+    with st.form("asset_form"):
+        with col1:
+            asset = st.selectbox(
+                "Actif", options=assets, format_func=lambda asset: asset.name
+            )
+        with col2:
+            if state.type == "buy":
+                if st.button("Créer un nouvel actif"):
+                    new_asset()
+
+        submitted = st.form_submit_button("Valider l'actif")
+        if submitted:
+            _update(asset)
 
 
 def _transaction_data() -> None:

@@ -1,12 +1,12 @@
 import logging
 import sqlite3
-from typing import Generator
+from typing import Iterator
 
 from mywallet.db import Db
 from mywallet.wallet.model import Category, CategoryId, CategoryRaw
 
 
-def get_all_category() -> Generator[Category]:
+def get_all_category() -> Iterator[Category]:
     db = Db.instance()
     db.session.row_factory = sqlite3.Row
     cur = db.session.execute(
@@ -18,15 +18,23 @@ def get_all_category() -> Generator[Category]:
             title=row["title"],
             description=row["description"],
         )
+    cur.close()
 
 
-def add_category(category: CategoryRaw) -> None:
+def add_category(category: CategoryRaw) -> Category:
     db = Db.instance()
-    db.session.execute(
+    cur = db.session.execute(
         "INSERT INTO category (title, description) VALUES (?, ?)",
         (category.title, category.description),
     )
+    new_id = cur.lastrowid
     db.session.commit()
+
+    row = db.session.execute(
+        "SELECT id, title, description FROM category WHERE id = ?",
+        (new_id,),
+    ).fetchone()
+    return Category(id=row[0], title=row[1], description=row[2])
 
 
 def get_category_by_id(category_id: CategoryId) -> Category | None:
@@ -36,6 +44,7 @@ def get_category_by_id(category_id: CategoryId) -> Category | None:
         "SELECT id, title, description FROM category WHERE id = ?", (category_id,)
     )
     row = cur.fetchone()
+    cur.close()
     if row:
         return Category(
             id=row["id"],

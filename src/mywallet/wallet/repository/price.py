@@ -11,6 +11,7 @@ def get_price_by_id(id: PriceId) -> Price:
         "SELECT id, amount, currency FROM price where id = ?", (id.value,)
     )
     result = cur.fetchone()
+    cur.close()
     if not result:
         raise ValueError(f"Price with id {id.value} not found")
     return Price(

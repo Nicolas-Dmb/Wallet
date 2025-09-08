@@ -33,7 +33,7 @@ class TransactionState:
 
     def previous_question(self):
         if self.current_question > 0:
-            self.current_question -= 1
+            self.current_question = self.current_question - 1
 
     def reset(self):
         self.place = None

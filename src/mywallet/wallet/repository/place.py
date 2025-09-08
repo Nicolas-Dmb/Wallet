@@ -1,11 +1,11 @@
 import sqlite3
-from typing import Generator
+from typing import Iterator
 
 from mywallet.db import Db
 from mywallet.wallet.model import Place, PlaceId, PlaceRaw
 
 
-def get_places() -> Generator[Place]:
+def get_places() -> Iterator[Place]:
     db = Db.instance()
     db.session.row_factory = sqlite3.Row
     cur = db.session.execute("SELECT id, name, description FROM place ORDER BY name")
@@ -16,6 +16,7 @@ def get_places() -> Generator[Place]:
             name=row["name"],
             description=row["description"],
         )
+    cur.close()
 
 
 def add_place(place: PlaceRaw) -> None:

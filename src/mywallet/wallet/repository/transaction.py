@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import Generator
+from typing import Iterator
 
 from mywallet.db import Db
 from mywallet.wallet.model import (
@@ -16,7 +16,7 @@ from .assets import get_asset_by_id
 from .price import get_price_by_id
 
 
-def get_transactions() -> Generator[Transaction]:
+def get_transactions() -> Iterator[Transaction]:
     db = Db.instance()
     db.session.row_factory = sqlite3.Row
     cur = db.session.execute(
@@ -40,6 +40,7 @@ def get_transactions() -> Generator[Transaction]:
             price=price,
             place=row["place"],
         )
+    cur.close()
 
 
 def add_transaction(transaction: TransactionRaw) -> None:

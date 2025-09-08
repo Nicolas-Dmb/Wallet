@@ -1,6 +1,8 @@
+from typing import List
+
 import streamlit as st
 
-from mywallet.wallet.model import AssetRaw, AssetType, CategoryRaw, PlaceRaw
+from mywallet.wallet.model import AssetRaw, AssetType, Category, CategoryRaw, PlaceRaw
 from mywallet.wallet.repository import (
     add_asset,
     add_category,
@@ -13,24 +15,28 @@ from mywallet.wallet.repository import (
 
 @st.dialog("Créer un nouvel actif")
 def new_asset():
-    categorys = get_all_category()
-    st.session_state["categorys"] = list(categorys)
+    categorys = list(get_all_category())
+    st.session_state["categorys"] = categorys
     with st.form("new_asset_form"):
         name = st.text_input("Nom de l'actif")
         ticker = st.text_input("Symbole de l'actif")
         type = st.selectbox(
             "Type d'actif", options=["crypto", "stock", "estate", "other"]
         )
-        col1, col2 = st.columns(2)
-        with col1:
-            categorys = st.multiselect(
-                "Catégories", options=[c.title for c in categorys]
-            )
-        with col2:
-            if st.button("ajouter une catégorie"):
-                new_category()
+        selected_categorys = st.multiselect(
+            "Catégories",
+            options=categorys,
+            format_func=lambda c: c.title,
+            accept_new_options=True,
+        )
         submitted = st.form_submit_button("Créer l'actif")
         if submitted:
+            if not name or not ticker or not type or not selected_categorys:
+                st.error("Veuillez remplir tous les champs obligatoires.")
+                return
+            categorys: List[Category] = []
+            for category in selected_categorys:
+                categorys.append(is_new_category(category))
             asset = AssetRaw(
                 name=name,
                 ticker=ticker,
@@ -43,20 +49,16 @@ def new_asset():
             assets = get_assets()
             st.session_state["assets"] = assets
             st.success("Actif créé !")
+            st.rerun()
 
 
-@st.dialog("Créer une nouvelle catégorie")
-def new_category() -> None:
-    with st.form("new_category_form"):
-        title = st.text_input("Titre de la catégorie")
-        description = st.text_area("Description de la catégorie")
-        submitted = st.form_submit_button("Créer la catégorie")
-        if submitted:
-            category = CategoryRaw(title=title, description=description)
-            add_category(category)
-            categorys = get_all_category()
-            st.session_state["categorys"] = list(categorys)
-            return
+def is_new_category(selected_category: Category | str) -> Category:
+    if isinstance(selected_category, Category):
+        return selected_category
+    title = selected_category
+    category = CategoryRaw(title=title, description="")
+    new_category = add_category(category)
+    return new_category
 
 
 @st.dialog("Créer un nouveau lieu")

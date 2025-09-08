@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Generator, List
+from typing import Iterator, List
 
 from mywallet.db import Db
 from mywallet.wallet.model import (
@@ -14,16 +14,16 @@ from mywallet.wallet.model import (
 from .category import get_category_by_id
 
 
-def get_assets() -> Generator[Asset]:
+def get_assets() -> Iterator[Asset]:
     db = Db.instance()
     db.session.row_factory = sqlite3.Row
     cur = db.session.execute(
-        "SELECT name, type, ticker, category, id FROM asset ORDER BY name"
+        "SELECT name, type, ticker, categorys, id FROM asset ORDER BY name"
     )
     for row in cur:
         type = AssetType(row["type"])
 
-        categoryIds: List[str] = row["category"].split(",") if row["category"] else []
+        categoryIds: List[str] = row["categorys"].split(",") if row["categorys"] else []
         categorys = _get_asset_category(categoryIds)
 
         id = AssetId(row["id"])
@@ -34,6 +34,7 @@ def get_assets() -> Generator[Asset]:
             type=type,
             category=categorys,
         )
+    cur.close()
 
 
 def _get_asset_category(categoryIds: list[str]) -> List[Category]:
@@ -47,8 +48,8 @@ def _get_asset_category(categoryIds: list[str]) -> List[Category]:
 
 def add_asset(asset: AssetRaw) -> None:
     db = Db.instance()
-    db.session.execute(
-        "INSERT INTO asset (name, type, ticker, category) VALUES (?, ?, ?, ?)",
+    cur = db.session.execute(
+        "INSERT INTO asset (name, type, ticker, categorys) VALUES (?, ?, ?, ?)",
         (
             asset.name,
             str(asset.type),
@@ -56,23 +57,25 @@ def add_asset(asset: AssetRaw) -> None:
             ",".join([str(c.id) for c in asset.category]),
         ),
     )
-    db.session.commit()
+    cur.close()
 
 
 def get_asset_by_id(id: AssetId) -> Asset:
     db = Db.instance()
     db.session.row_factory = sqlite3.Row
     cur = db.session.execute(
-        "SELECT name, type, ticker, category, id FROM asset where id = ?", (id.value,)
+        "SELECT name, type, ticker, categorys, id FROM asset where id = ?", (id.value,)
     )
     result = cur.fetchone()
     if not result:
         raise ValueError(f"Asset with id {id.value} not found")
     type = AssetType(result["type"])
 
-    categoryIds: List[str] = result["category"].split(",") if result["category"] else []
+    categoryIds: List[str] = (
+        result["categorys"].split(",") if result["categorys"] else []
+    )
     categorys = _get_asset_category(categoryIds)
-
+    cur.close()
     return Asset(
         id=id,
         ticker=result["ticker"],
