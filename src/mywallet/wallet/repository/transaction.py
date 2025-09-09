@@ -1,5 +1,4 @@
 import datetime
-import sqlite3
 from typing import Iterator
 
 from mywallet.db import Db
@@ -18,8 +17,7 @@ from .price import get_price_by_id
 
 def get_transactions() -> Iterator[Transaction]:
     db = Db.instance()
-    db.session.row_factory = sqlite3.Row
-    cur = db.session.execute(
+    cur = db.execute(
         "SELECT id, asset, date, type, price, place FROM transactions ORDER BY name"
     )
     for row in cur:
@@ -45,7 +43,7 @@ def get_transactions() -> Iterator[Transaction]:
 
 def add_transaction(transaction: TransactionRaw) -> None:
     db = Db.instance()
-    db.session.execute(
+    db.execute(
         "INSERT INTO transaction (asset, date, type, price, place) VALUES (?, ?, ? , ?, ?)",
         (
             transaction.asset.id,
@@ -55,4 +53,3 @@ def add_transaction(transaction: TransactionRaw) -> None:
             transaction.place,
         ),
     )
-    db.session.commit()

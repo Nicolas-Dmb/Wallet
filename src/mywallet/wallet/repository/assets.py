@@ -15,26 +15,30 @@ from .category import get_category_by_id
 
 
 def get_assets() -> Iterator[Asset]:
-    db = Db.instance()
-    db.session.row_factory = sqlite3.Row
-    cur = db.session.execute(
-        "SELECT name, type, ticker, categorys, id FROM asset ORDER BY name"
-    )
-    for row in cur:
-        type = AssetType(row["type"])
-
-        categoryIds: List[str] = row["categorys"].split(",") if row["categorys"] else []
-        categorys = _get_asset_category(categoryIds)
-
-        id = AssetId(row["id"])
-        yield Asset(
-            id=id,
-            ticker=row["ticker"],
-            name=row["name"],
-            type=type,
-            category=categorys,
+    try:
+        db = Db.instance()
+        cur = db.execute(
+            "SELECT name, type, ticker, categorys, id FROM asset ORDER BY name", None
         )
-    cur.close()
+        for row in cur:
+            type = AssetType(row["type"])
+
+            categoryIds: List[str] = (
+                row["categorys"].split(",") if row["categorys"] else []
+            )
+            categorys = _get_asset_category(categoryIds)
+
+            id = AssetId(row["id"])
+            yield Asset(
+                id=id,
+                ticker=row["ticker"],
+                name=row["name"],
+                type=type,
+                category=categorys,
+            )
+        cur.close()
+    except sqlite3.Error as e:
+        raise e
 
 
 def _get_asset_category(categoryIds: list[str]) -> List[Category]:
@@ -47,39 +51,45 @@ def _get_asset_category(categoryIds: list[str]) -> List[Category]:
 
 
 def add_asset(asset: AssetRaw) -> None:
-    db = Db.instance()
-    cur = db.session.execute(
-        "INSERT INTO asset (name, type, ticker, categorys) VALUES (?, ?, ?, ?)",
-        (
-            asset.name,
-            str(asset.type),
-            asset.ticker,
-            ",".join([str(c.id) for c in asset.category]),
-        ),
-    )
-    cur.close()
+    try:
+        db = Db.instance()
+        cur = db.execute(
+            "INSERT INTO asset (name, type, ticker, categorys) VALUES (?, ?, ?, ?)",
+            (
+                asset.name,
+                str(asset.type),
+                asset.ticker,
+                ",".join([str(c.id) for c in asset.category]),
+            ),
+        )
+        cur.close()
+    except sqlite3.Error as e:
+        raise e
 
 
 def get_asset_by_id(id: AssetId) -> Asset:
-    db = Db.instance()
-    db.session.row_factory = sqlite3.Row
-    cur = db.session.execute(
-        "SELECT name, type, ticker, categorys, id FROM asset where id = ?", (id.value,)
-    )
-    result = cur.fetchone()
-    if not result:
-        raise ValueError(f"Asset with id {id.value} not found")
-    type = AssetType(result["type"])
+    try:
+        db = Db.instance()
+        cur = db.execute(
+            "SELECT name, type, ticker, categorys, id FROM asset where id = ?",
+            (id.value,),
+        )
+        result = cur.fetchone()
+        if not result:
+            raise ValueError(f"Asset with id {id.value} not found")
+        type = AssetType(result["type"])
 
-    categoryIds: List[str] = (
-        result["categorys"].split(",") if result["categorys"] else []
-    )
-    categorys = _get_asset_category(categoryIds)
-    cur.close()
-    return Asset(
-        id=id,
-        ticker=result["ticker"],
-        name=result["name"],
-        type=type,
-        category=categorys,
-    )
+        categoryIds: List[str] = (
+            result["categorys"].split(",") if result["categorys"] else []
+        )
+        categorys = _get_asset_category(categoryIds)
+        cur.close()
+        return Asset(
+            id=id,
+            ticker=result["ticker"],
+            name=result["name"],
+            type=type,
+            category=categorys,
+        )
+    except sqlite3.Error as e:
+        raise e

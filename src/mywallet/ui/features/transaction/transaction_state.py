@@ -26,6 +26,8 @@ class TransactionState:
             transaction = self._assert_complete()
             try:
                 add_transaction(transaction)
+                self.reset()
+                st.success("Transaction enregistrée !")
             except Exception as e:
                 st.error("Erreur lors de l'enregistrement de la transaction")
                 logging.error(f"Error while adding transaction: {e}")
@@ -55,6 +57,7 @@ class TransactionState:
                 self.price = answer
             case 4:
                 self.place = answer
+
             case _:
                 raise ValueError("Invalid question index")
         self._next_question()

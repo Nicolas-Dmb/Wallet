@@ -2,14 +2,17 @@ from typing import List
 
 import streamlit as st
 
-from mywallet.wallet.model import AssetRaw, AssetType, Category, CategoryRaw, PlaceRaw
+from mywallet.wallet.model import (
+    AssetRaw,
+    AssetType,
+    Category,
+    CategoryRaw,
+)
 from mywallet.wallet.repository import (
     add_asset,
     add_category,
-    add_place,
     get_all_category,
     get_assets,
-    get_places,
 )
 
 
@@ -31,7 +34,7 @@ def new_asset():
         )
         submitted = st.form_submit_button("Créer l'actif")
         if submitted:
-            if not name or not ticker or not type or not selected_categorys:
+            if not name or not ticker or not type:
                 st.error("Veuillez remplir tous les champs obligatoires.")
                 return
             categorys: List[Category] = []
@@ -59,17 +62,3 @@ def is_new_category(selected_category: Category | str) -> Category:
     category = CategoryRaw(title=title, description="")
     new_category = add_category(category)
     return new_category
-
-
-@st.dialog("Créer un nouveau lieu")
-def new_place() -> None:
-    with st.form("new_place_form"):
-        name = st.text_input("Nom du lieu")
-        description = st.text_area("Description du lieu")
-        submitted = st.form_submit_button("Créer le lieu")
-        if submitted:
-            place = PlaceRaw(name=name, description=description)
-            add_place(place)
-            places = get_places()
-            st.session_state["places"] = list(places)
-            return

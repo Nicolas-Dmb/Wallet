@@ -1,15 +1,10 @@
-import sqlite3
-
 from mywallet.db import Db
 from mywallet.wallet.model import Price, PriceId
 
 
 def get_price_by_id(id: PriceId) -> Price:
     db = Db.instance()
-    db.session.row_factory = sqlite3.Row
-    cur = db.session.execute(
-        "SELECT id, amount, currency FROM price where id = ?", (id.value,)
-    )
+    cur = db.execute("SELECT id, amount, currency FROM price where id = ?", (id.value,))
     result = cur.fetchone()
     cur.close()
     if not result:
@@ -23,8 +18,7 @@ def get_price_by_id(id: PriceId) -> Price:
 
 def add_price(price: Price) -> None:
     db = Db.instance()
-    db.session.execute(
+    db.execute(
         "INSERT INTO price (amount, currency) VALUES (?, ?)",
         (price.amount, price.currency),
     )
-    db.session.commit()

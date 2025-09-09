@@ -1,10 +1,16 @@
+import datetime
 from typing import Any
 
 import streamlit as st
 
-from mywallet.ui.utils import Progress_bar, new_asset, new_place
-from mywallet.wallet.model import RawPrice
-from mywallet.wallet.repository import get_assets, get_places
+from mywallet.ui.utils import Progress_bar, new_asset
+from mywallet.wallet.model import Place, PlaceRaw, RawPrice
+from mywallet.wallet.repository import (
+    add_place,
+    get_assets,
+    get_places,
+    get_transactions,
+)
 
 from .transaction_state import TransactionState
 
@@ -27,7 +33,6 @@ def transaction_form():
         case 2 | 3 | 4:
             if st.button("retour"):
                 state.previous_question()
-            state.previous_question()
             _transaction_data()
         case _:
             st.success("Transaction enregistrée !")
@@ -45,7 +50,7 @@ def _transaction_asset() -> None:
     state: TransactionState = st.session_state["transaction_state"]
     assets = list(get_assets())
     st.session_state["assets"] = assets
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2, vertical_alignment="bottom")
     with st.form("asset_form"):
         with col1:
             asset = st.selectbox(
@@ -65,28 +70,49 @@ def _transaction_data() -> None:
     places = get_places()
     st.session_state["places"] = list(places)
     with st.form("transaction_data_form"):
-        date = st.date_input("Date de la transaction")
+        date = st.date_input("Date de la transaction", max_value=datetime.date.today())
         col1, col2 = st.columns(2)
         with col1:
-            amount = st.number_input("Prix", min_value=0.0, step=0.01)
-            place = st.selectbox(
+            p1, p2 = st.columns([4, 1])
+            amount = p1.number_input("Prix", min_value=0.0, step=0.01)
+            currency = p2.selectbox("devise", ["€", "$", "£"])
+        with col2:
+            selected_place = st.selectbox(
                 "banque",
                 st.session_state["places"],
                 format_func=lambda place: place.name,
+                accept_new_options=True,
             )
-        with col2:
-            currency = st.selectbox("devise", ["€", "$", "£"])
-            if st.button("Ajouter une nouvelle banque"):
-                new_place()
-        submitted = st.form_submit_button("Enregistrer la transaction")
+        submitted = st.form_submit_button(
+            "Enregistrer la transaction", key="submit Asset"
+        )
         if submitted:
+            if amount <= 0.0 or not selected_place or not date or not currency:
+                st.error("Veuillez remplir tous les champs obligatoires.")
+                return
             price = RawPrice(amount=amount, currency=currency)
             _update(date)
             _update(price)
+            place = _is_new_place(selected_place)
             _update(place)
+            result = get_transactions()
+            print("transaction ", result)
 
 
 def _update(answer: Any) -> None:
     state: TransactionState = st.session_state["transaction_state"]
     state.register(answer)
     st.session_state["transaction_state"] = state
+
+
+def _is_new_place(selected_place: Place | str) -> Place:
+    if isinstance(selected_place, str):
+        place = PlaceRaw(name=selected_place, description="")
+        try:
+            new_place = add_place(place)
+        except ValueError as e:
+            st.error(str(e))
+            raise e
+        return new_place
+    else:
+        return selected_place

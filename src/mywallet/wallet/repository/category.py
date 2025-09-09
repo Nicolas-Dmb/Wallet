@@ -8,10 +8,7 @@ from mywallet.wallet.model import Category, CategoryId, CategoryRaw
 
 def get_all_category() -> Iterator[Category]:
     db = Db.instance()
-    db.session.row_factory = sqlite3.Row
-    cur = db.session.execute(
-        "SELECT id, title, description FROM category ORDER BY title"
-    )
+    cur = db.execute("SELECT id, title, description FROM category ORDER BY title")
     for row in cur:
         yield Category(
             id=row["id"],
@@ -23,14 +20,13 @@ def get_all_category() -> Iterator[Category]:
 
 def add_category(category: CategoryRaw) -> Category:
     db = Db.instance()
-    cur = db.session.execute(
+    cur = db.execute(
         "INSERT INTO category (title, description) VALUES (?, ?)",
         (category.title, category.description),
     )
     new_id = cur.lastrowid
-    db.session.commit()
 
-    row = db.session.execute(
+    row = db.execute(
         "SELECT id, title, description FROM category WHERE id = ?",
         (new_id,),
     ).fetchone()
@@ -40,7 +36,7 @@ def add_category(category: CategoryRaw) -> Category:
 def get_category_by_id(category_id: CategoryId) -> Category | None:
     db = Db.instance()
     db.session.row_factory = sqlite3.Row
-    cur = db.session.execute(
+    cur = db.execute(
         "SELECT id, title, description FROM category WHERE id = ?", (category_id,)
     )
     row = cur.fetchone()
