@@ -11,7 +11,7 @@ from mywallet.wallet.repository import add_transaction
 
 @dataclass
 class TransactionState:
-    total_questions: int = 5
+    total_questions: int = 4
     place: Place | None = None
     price: Price | None = None
     type: TransactionType | None = None
@@ -48,16 +48,20 @@ class TransactionState:
     def register(self, answer: Any) -> int:
         match self.current_question:
             case 0:
+                assert isinstance(answer, TransactionType)
                 self.type = answer
             case 1:
+                assert isinstance(answer, Asset)
                 self.asset = answer
             case 2:
+                assert isinstance(answer, datetime.date)
                 self.date = answer
             case 3:
+                assert isinstance(answer, Price)
                 self.price = answer
             case 4:
+                assert isinstance(answer, Place)
                 self.place = answer
-
             case _:
                 raise ValueError("Invalid question index")
         self._next_question()

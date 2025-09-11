@@ -4,7 +4,7 @@ from typing import Any
 import streamlit as st
 
 from mywallet.ui.utils import Progress_bar, new_asset
-from mywallet.wallet.model import Place, PlaceRaw, RawPrice
+from mywallet.wallet.model import Currency, Place, PlaceRaw, RawPrice
 from mywallet.wallet.repository import (
     add_place,
     get_assets,
@@ -75,7 +75,9 @@ def _transaction_data() -> None:
         with col1:
             p1, p2 = st.columns([4, 1])
             amount = p1.number_input("Prix", min_value=0.0, step=0.01)
-            currency = p2.selectbox("devise", ["€", "$", "£"])
+            currency = p2.selectbox(
+                "devise", [c for c in Currency], format_func=lambda c: c.value
+            )
         with col2:
             selected_place = st.selectbox(
                 "banque",

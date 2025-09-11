@@ -42,7 +42,7 @@ def _configure_tables(conn: sqlite3.Connection, table: str) -> None:
                 CREATE TABLE IF NOT EXISTS price (
                     id INTEGER PRIMARY KEY,
                     value INTEGER,
-                    currency TEXT
+                    currency TEXT NOT NULL CHECK (type IN ('$', '€', '£')),
                 );
                 """
             )

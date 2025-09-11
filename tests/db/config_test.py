@@ -27,8 +27,8 @@ def test_configure_database(mocker):
     mock_connect.return_value.__enter__.return_value = conn
     mock_connect.return_value.__exit__.return_value = False
 
-    mock_conf = mocker.patch("wallet.db.config._configure_tables")
-    mock_upd = mocker.patch("wallet.db.config._update_tables")
+    mock_conf = mocker.patch("mywallet.db.config._configure_tables")
+    mock_upd = mocker.patch("mywallet.db.config._update_tables")
 
     configure_database()
 
@@ -80,7 +80,7 @@ def test_configure_tables(mocker):
 
 
 def test_update_tables_calls_configure_when_columns_missing(mocker):
-    mock_conf = mocker.patch("wallet.db.config._configure_tables")
+    mock_conf = mocker.patch("mywallet.db.config._configure_tables")
 
     fake_rows = [(0, "id", "INTEGER", 1, None, 1)]
     cur = mocker.MagicMock()
@@ -103,7 +103,7 @@ def test_update_tables_calls_configure_when_columns_missing(mocker):
 
 def test_update_tables_noop(mocker):
     conn = mocker.MagicMock()
-    mock_conf = mocker.patch("wallet.db.config._configure_tables")
+    mock_conf = mocker.patch("mywallet.db.config._configure_tables")
 
     def exec_side_effect(sql, *a, **k):
         if "PRAGMA table_info(" in sql:

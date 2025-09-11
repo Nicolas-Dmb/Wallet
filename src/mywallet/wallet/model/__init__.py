@@ -1,7 +1,7 @@
 from .asset import Asset, AssetId, AssetRaw, AssetType
 from .category import Category, CategoryId, CategoryRaw
 from .place import Place, PlaceId, PlaceRaw
-from .price import Price, PriceId, RawPrice
+from .price import Currency, Price, PriceId, RawPrice
 from .transaction import Transaction, TransactionId, TransactionRaw, TransactionType
 
 __all__ = [
@@ -22,4 +22,5 @@ __all__ = [
     "RawPrice",
     "TransactionId",
     "PriceId",
+    "Currency",
 ]
