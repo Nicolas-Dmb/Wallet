@@ -35,3 +35,19 @@ def add_place(place: PlaceRaw) -> Place:
             raise ValueError(f"Place with name '{place.name}' already exists.") from e
         else:
             raise
+
+
+def get_place_by_id(id: PlaceId) -> Place:
+    db = Db.instance()
+    cur = db.execute(
+        "SELECT id, name, description FROM place where id = ?", (id.value,)
+    )
+    result = cur.fetchone()
+    cur.close()
+    if not result:
+        raise ValueError(f"Place with id {id.value} not found")
+    return Place(
+        id=id,
+        name=result["name"],
+        description=result["description"],
+    )

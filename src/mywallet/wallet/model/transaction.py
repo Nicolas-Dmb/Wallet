@@ -1,3 +1,4 @@
+import enum
 from dataclasses import dataclass
 from datetime import date
 
@@ -11,7 +12,7 @@ class TransactionId:
     value: str
 
 
-class TransactionType(str):
+class TransactionType(enum.Enum):
     BUY = "buy"
     SELL = "sell"
 

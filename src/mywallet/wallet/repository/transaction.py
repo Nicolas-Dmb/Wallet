@@ -1,9 +1,11 @@
 import datetime
+import logging
 from typing import Iterator
 
 from mywallet.db import Db
 from mywallet.wallet.model import (
     AssetId,
+    PlaceId,
     PriceId,
     Transaction,
     TransactionId,
@@ -12,6 +14,7 @@ from mywallet.wallet.model import (
 )
 
 from .assets import get_asset_by_id
+from .place import get_place_by_id
 from .price import get_price_by_id
 
 
@@ -30,26 +33,29 @@ def get_transactions() -> Iterator[Transaction]:
         price = get_price_by_id(priceId)
         assetId = AssetId(row["asset"])
         asset = get_asset_by_id(assetId)
+        placeId = PlaceId(row["place"])
+        place = get_place_by_id(placeId)
         yield Transaction(
             id=id,
             asset=asset,
             date=date,
             type=type,
             price=price,
-            place=row["place"],
+            place=place,
         )
     cur.close()
 
 
 def add_transaction(transaction: TransactionRaw) -> None:
     db = Db.instance()
+    logging.info("transaction to add, %s", transaction.type.value)
     db.execute(
-        "INSERT INTO transaction (asset, date, type, price, place) VALUES (?, ?, ? , ?, ?)",
+        "INSERT INTO transactions (asset, date, type, price, place) VALUES (?, ?, ? , ?, ?)",
         (
-            transaction.asset.id,
+            transaction.asset.id.value,
             transaction.date.isoformat(),
-            str(transaction.type),
-            transaction.price.id,
-            transaction.place,
+            transaction.type.value,
+            transaction.price.id.value,
+            transaction.place.id.value,
         ),
     )

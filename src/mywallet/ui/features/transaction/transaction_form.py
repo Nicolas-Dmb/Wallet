@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Any
 
 import streamlit as st
@@ -41,9 +42,9 @@ def transaction_form():
 
 def _transaction_type() -> None:
     left, right = st.columns(2)
-    if left.button("Achat"):
+    if left.button("Achat", use_container_width=True):
         _update(TransactionType("buy"))
-    if right.button("Vente"):
+    if right.button("Vente", use_container_width=True):
         _update(TransactionType("sell"))
 
 
@@ -51,18 +52,18 @@ def _transaction_asset() -> None:
     state: TransactionState = st.session_state["transaction_state"]
     assets = list(get_assets())
     st.session_state["assets"] = assets
-    col1, col2 = st.columns(2, vertical_alignment="bottom")
-    with st.form("asset_form"):
+    _, col1, col2, _ = st.columns([1, 2, 1, 1], vertical_alignment="bottom")
+    with st.form("asset_form", border=False):
         with col1:
             asset = st.selectbox(
                 "Actif", options=assets, format_func=lambda asset: asset.name
             )
         with col2:
-            if state.type == "buy":
+            if state.type.value == "buy":
                 if st.button("Créer un nouvel actif"):
                     new_asset()
-
-        submitted = st.form_submit_button("Valider l'actif")
+        _, col1, col2, _ = st.columns([1, 2, 1, 1], vertical_alignment="bottom")
+        submitted = col1.form_submit_button("Valider l'actif")
         if submitted:
             _update(asset)
 
@@ -98,6 +99,7 @@ def _transaction_data() -> None:
             _update(date)
             _update(price)
             place = _is_new_place(selected_place)
+            logging.info("place ", place)
             _update(place)
             result = get_transactions()
             print("transaction ", result)

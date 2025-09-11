@@ -30,7 +30,7 @@ def add_price(price: RawPrice) -> Price:
     if not cur:
         raise ValueError("price didn't succesfully registered")
     return Price(
-        id=result["id"],
+        id=PriceId(result["id"]),
         amount=result["value"],
         currency=result["currency"],
     )
