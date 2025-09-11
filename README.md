@@ -15,7 +15,7 @@
 
 ## Run project 
 ```bash
-    python app/main.py
+    streamlit run app/main.py
 ```
 ## Run tests
 ```bash

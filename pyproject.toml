@@ -1,5 +1,5 @@
 [project]
-name = "wallet"
+name = "mywallet"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/wallet"]
+packages = ["src/mywallet"]
 
 [tool.uv]
 package = true
