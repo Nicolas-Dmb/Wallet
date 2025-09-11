@@ -4,9 +4,10 @@ from typing import Any
 import streamlit as st
 
 from mywallet.ui.utils import Progress_bar, new_asset
-from mywallet.wallet.model import Currency, Place, PlaceRaw, RawPrice
+from mywallet.wallet.model import Currency, Place, PlaceRaw, RawPrice, TransactionType
 from mywallet.wallet.repository import (
     add_place,
+    add_price,
     get_assets,
     get_places,
     get_transactions,
@@ -41,9 +42,9 @@ def transaction_form():
 def _transaction_type() -> None:
     left, right = st.columns(2)
     if left.button("Achat"):
-        _update("buy")
+        _update(TransactionType("buy"))
     if right.button("Vente"):
-        _update("sell")
+        _update(TransactionType("sell"))
 
 
 def _transaction_asset() -> None:
@@ -92,7 +93,8 @@ def _transaction_data() -> None:
             if amount <= 0.0 or not selected_place or not date or not currency:
                 st.error("Veuillez remplir tous les champs obligatoires.")
                 return
-            price = RawPrice(amount=amount, currency=currency)
+            rawprice = RawPrice(amount=amount, currency=currency)
+            price = add_price(rawprice)
             _update(date)
             _update(price)
             place = _is_new_place(selected_place)

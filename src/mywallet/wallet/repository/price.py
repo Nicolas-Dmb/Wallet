@@ -1,10 +1,10 @@
 from mywallet.db import Db
-from mywallet.wallet.model import Price, PriceId
+from mywallet.wallet.model import Price, PriceId, RawPrice
 
 
 def get_price_by_id(id: PriceId) -> Price:
     db = Db.instance()
-    cur = db.execute("SELECT id, amount, currency FROM price where id = ?", (id.value,))
+    cur = db.execute("SELECT id, value, currency FROM price where id = ?", (id.value,))
     result = cur.fetchone()
     cur.close()
     if not result:
@@ -16,9 +16,21 @@ def get_price_by_id(id: PriceId) -> Price:
     )
 
 
-def add_price(price: Price) -> None:
+def add_price(price: RawPrice) -> Price:
     db = Db.instance()
-    db.execute(
-        "INSERT INTO price (amount, currency) VALUES (?, ?)",
-        (price.amount, price.currency),
+    cur = db.execute(
+        "INSERT INTO price (value, currency) VALUES (?, ?)",
+        (price.amount, price.currency.value),
+    )
+    id = cur.lastrowid
+    cur = db.execute("SELECT id, value, currency FROM price where id = ?", (id,))
+    result = cur.fetchone()
+    cur.close()
+
+    if not cur:
+        raise ValueError("price didn't succesfully registered")
+    return Price(
+        id=result["id"],
+        amount=result["value"],
+        currency=result["currency"],
     )
