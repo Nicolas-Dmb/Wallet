@@ -11,4 +11,3 @@ wheels/
 
 # xlsx files
 *.xlsx
-!template.xlsx
