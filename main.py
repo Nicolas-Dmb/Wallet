@@ -4,6 +4,8 @@ import warnings
 
 from ui.streamlit_app import run
 from infrastructure.excel_repository import ExcelRepository
+from infrastructure.market_data_yfinance import YfinanceRepository
+from domain.valuation import get_assets_valuation
 
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 logger = logging.getLogger(__name__)
@@ -21,9 +23,8 @@ def main():
             "Template available at: https://github.com/Nicolas-Dmb/Wallet"
         )
         raise
-
-    run(excel_repo)
-
+    yfinance_repo = YfinanceRepository()
+    run(excel_repo, yfinance_repo)
 
 if __name__ == "__main__":
     main()

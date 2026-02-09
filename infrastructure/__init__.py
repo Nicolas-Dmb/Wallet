@@ -1,1 +1,2 @@
 from .excel_repository import ExcelRepository as ExcelRepository
+from .market_data_yfinance import YfinanceRepository as YfinanceRepository

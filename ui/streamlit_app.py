@@ -1,14 +1,14 @@
-from infrastructure.excel_repository import ExcelRepository
+from infrastructure import ExcelRepository, YfinanceRepository
 import streamlit as st
 from .pages import momentum, valuation
 
-def run(excel_repo: ExcelRepository):
+def run(excel_repo: ExcelRepository, yfinance_repo: YfinanceRepository):
 
     def valuation_page():
-        valuation(excel_repo)
+        valuation(excel_repo, yfinance_repo)
 
     def momentum_page():
-        momentum(excel_repo)
+        momentum(excel_repo, yfinance_repo)
 
     pages = {
         "Your pages": [

@@ -1,5 +1,6 @@
+import enum
 import pandas as pd
-
+from domain.entities import AssetRaw, TransactionRaw
 path = "template.xlsx"
 
 class Settings: 
@@ -28,4 +29,11 @@ class ExcelRepository:
         pass
 
 
+    def get_assets(self) -> list[AssetRaw]:
+        return [AssetRaw.from_dict(data) for data in self.assets.to_dict(orient="records")]
 
+    def get_transactions(self) -> list[TransactionRaw]:
+        return [TransactionRaw.from_dict(data) for data in self.transactions.to_dict(orient="records")]
+
+    def get_categories(self) -> list[str]:
+        return self.settings.categories.values.flatten().tolist()
