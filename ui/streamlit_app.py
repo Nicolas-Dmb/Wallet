@@ -4,6 +4,10 @@ from .pages import momentum, valuation
 
 def run(excel_repo: ExcelRepository, yfinance_repo: YfinanceRepository):
 
+    st.set_page_config(
+        layout="wide"
+    )
+
     def valuation_page():
         valuation(excel_repo, yfinance_repo)
 
