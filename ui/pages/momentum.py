@@ -1,19 +1,83 @@
-from infrastructure import ExcelRepository, YfinanceRepository
-from domain.momentum import get_momentum
+import pandas as pd
 import streamlit as st
 
-def momentum(excel_repo:ExcelRepository, yfinance_repo:YfinanceRepository):
+from domain.charts import momentum_table
+from domain.entities import Momentum
+from domain.momentum import get_momentum
+from infrastructure import ExcelRepository, YfinanceRepository
+
+
+def momentum(excel_repo: ExcelRepository, yfinance_repo: YfinanceRepository):
     momentums = get_momentum(excel_repo, yfinance_repo)
     st.title("Momentum")
+    _display_momentum(momentums)
 
 
-def _display_momentum(momentums):
-    for momentum in momentums:
-        st.subheader(f"{momentum.ticker} - {momentum.name}")
-        st.write(f"Category: {momentum.category}")
-        st.write(f"1 Month Change: {momentum.percentage_change_1m:.2f}%")
-        st.write(f"3 Months Change: {momentum.percentage_change_3m:.2f}%")
-        st.write(f"6 Months Change: {momentum.percentage_change_6m:.2f}%")
-        st.write(f"1 Year Change: {momentum.percentage_change_1y:.2f}%")
-        st.write(f"3 Years Change: {momentum.percentage_change_3y:.2f}%")
-        st.divider()
+def _display_momentum(momentums: list[Momentum]):
+    table = momentum_table(momentums)
+    _display_long_term_momentum(table)
+    st.divider()
+    _display_mid_term_momentum(table)
+    st.divider()
+    _display_short_term_momentum(table)
+
+
+def _display_short_term_momentum(table: dict[str, list[Momentum]]):
+    st.subheader("Short-term Momentum")
+    threshold = len(table["short_term_momentum"]) // 2
+    best_short_term = table["short_term_momentum"][:threshold]
+    worst_short_term = table["short_term_momentum"][-threshold:]
+
+    df = pd.DataFrame(
+        {
+            "Best Short-term Momentum": [m.name for m in best_short_term],
+            "Score": [m.percentage_short_term for m in best_short_term],
+        }
+    )
+    styled_df = df.style.map(lambda x: "background-color: green", subset=["Score"])
+    st.dataframe(styled_df, hide_index=True)
+    df = pd.DataFrame(
+        {
+            "Worst Short-term Momentum": [m.name for m in worst_short_term],
+            "Score": [m.percentage_short_term for m in worst_short_term],
+        }
+    )
+    styled_df = df.style.map(lambda x: "background-color: red", subset=["Score"])
+    st.dataframe(styled_df, hide_index=True)
+
+
+def _display_mid_term_momentum(table: dict[str, list[Momentum]]):
+    st.subheader("Mid-term Momentum")
+    threshold = len(table["mid_term_momentum"]) // 2
+    best_mid_term = table["mid_term_momentum"][:threshold]
+    worst_mid_term = table["mid_term_momentum"][-threshold:]
+
+    df = pd.DataFrame(
+        {
+            "Best Mid-term Momentum": [m.name for m in best_mid_term],
+            "Score": [m.percentage_mid_term for m in best_mid_term],
+        }
+    )
+    styled_df = df.style.map(lambda x: "background-color: green", subset=["Score"])
+    st.dataframe(styled_df, hide_index=True)
+    df = pd.DataFrame(
+        {
+            "Worst Mid-term Momentum": [m.name for m in worst_mid_term],
+            "Score": [m.percentage_mid_term for m in worst_mid_term],
+        }
+    )
+    styled_df = df.style.map(lambda x: "background-color: red", subset=["Score"])
+    st.dataframe(styled_df, hide_index=True)
+
+
+def _display_long_term_momentum(table: dict[str, list[Momentum]]):
+    st.subheader("Long-term Momentum")
+
+    df = pd.DataFrame(
+        {
+            "Long-term Momentum": [m.name for m in table["long_term_momentum"]],
+            "Score": [m.percentage_long_term for m in table["long_term_momentum"]],
+        }
+    )
+    styled_df = df.style.map(lambda x: "background-color: red", subset=["Score"])
+    st.dataframe(styled_df, hide_index=True)
