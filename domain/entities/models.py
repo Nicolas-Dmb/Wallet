@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 import pandas as pd
 
@@ -64,4 +65,21 @@ class AssetData:
             valuation=assetTransaction.quantity * price.amount,
             day=day,
             transaction=assetTransaction,
+        )
+
+
+@dataclass
+class SearchResult:
+    ticker: str
+    name: str
+    exchange: str
+    type: str
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "SearchResult":
+        return SearchResult(
+            ticker=data.get("symbol", "Unknown"),
+            name=data.get("shortname", "Unknown"),
+            exchange=data.get("exchange", "Unknown"),
+            type=data.get("quoteType", "Unknown"),
         )

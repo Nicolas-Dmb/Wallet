@@ -1,5 +1,5 @@
 from .excel_models import AssetRaw, TransactionRaw, TransactionType
-from .models import AssetData, AssetTransaction, Momentum, Price
+from .models import AssetData, AssetTransaction, Momentum, Price, SearchResult
 
 __all__ = [
     "Price",
@@ -9,4 +9,5 @@ __all__ = [
     "TransactionType",
     "AssetData",
     "AssetTransaction",
+    "SearchResult",
 ]

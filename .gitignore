@@ -11,3 +11,6 @@ wheels/
 
 # xlsx files
 *.xlsx
+
+yfinance_cache
+tmp/

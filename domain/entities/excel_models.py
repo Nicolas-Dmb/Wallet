@@ -1,12 +1,15 @@
+import enum
 from dataclasses import dataclass
 from datetime import date
-import enum
+from typing import Any
+
 import pandas as pd
 
 
 class TransactionType(enum.Enum):
     BUY = "BUY"
     SELL = "SELL"
+
 
 @dataclass
 class TransactionRaw:
@@ -18,14 +21,14 @@ class TransactionRaw:
     currency: str
 
     @staticmethod
-    def from_dict(data: dict) -> "TransactionRaw":
+    def from_dict(data: dict[str, Any]) -> "TransactionRaw":
         return TransactionRaw(
             day=pd.to_datetime(data["date"]).date(),
             type=TransactionType(data["type"]),
             ticker=data["ticker"],
             quantity=data["quantity"],
             price=data["price"],
-            currency=data["currency"]
+            currency=data["currency"],
         )
 
 
@@ -35,9 +38,8 @@ class AssetRaw:
     name: str
     category: str
 
-    
     @staticmethod
-    def from_dict(data: dict) -> "AssetRaw":
+    def from_dict(data: dict[str, Any]) -> "AssetRaw":
         return AssetRaw(
             ticker=data["ticker"],
             name=data["name"],
