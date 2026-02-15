@@ -1,8 +1,10 @@
+from typing import Any
+
 from domain.entities import AssetData
 from domain.entities.models import Momentum
 
 
-def bar_charts(assets: list[AssetData], categories: list[str]) -> dict:
+def bar_charts(assets: list[AssetData], categories: list[str]) -> dict[str, Any]:
     df = {"Category": categories, "Value": []}
     sum_valuation = []
     for category in categories:
@@ -17,7 +19,7 @@ def bar_charts(assets: list[AssetData], categories: list[str]) -> dict:
     return df
 
 
-def table(assets: list[AssetData]) -> dict:
+def table(assets: list[AssetData]) -> dict[str, Any]:
     df = {
         "Name": [],
         "Current Price": [],

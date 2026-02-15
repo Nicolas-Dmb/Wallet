@@ -3,12 +3,9 @@ import streamlit as st
 
 from domain.charts import momentum_table
 from domain.entities import Momentum
-from domain.momentum import get_momentum
-from infrastructure import ExcelRepository, YfinanceRepository
 
 
-def momentum(excel_repo: ExcelRepository, yfinance_repo: YfinanceRepository):
-    momentums = get_momentum(excel_repo, yfinance_repo)
+def momentum(momentums: list[Momentum]):
     st.title("Momentum")
     _display_momentum(momentums)
 

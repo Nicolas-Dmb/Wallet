@@ -1,4 +1,5 @@
 import logging
+import sys
 import warnings
 
 from infrastructure.excel_repository import ExcelRepository
@@ -12,8 +13,10 @@ path = "template.xlsx"
 
 
 def main():
+    args = sys.argv[1:]
+
     try:
-        excel_repo = ExcelRepository(path)
+        excel_repo = ExcelRepository(args[0] if args else path)
     except Exception:
         logger.exception(
             "Error loading Excel repository. "
