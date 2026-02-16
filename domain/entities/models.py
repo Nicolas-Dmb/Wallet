@@ -39,6 +39,7 @@ class AssetTransaction:
     quantity: float
     avg_buy_price: float
     avg_sell_price: float
+    quantity_sell: float
 
 
 @dataclass
@@ -51,6 +52,7 @@ class AssetData:
     valuation: float
     day: date
     transaction: AssetTransaction
+    bank: list[str]
 
     @staticmethod
     def from_dict(
@@ -65,6 +67,7 @@ class AssetData:
             valuation=assetTransaction.quantity * price.amount,
             day=day,
             transaction=assetTransaction,
+            bank=asset.bank,
         )
 
 

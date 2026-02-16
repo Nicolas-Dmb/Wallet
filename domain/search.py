@@ -13,7 +13,7 @@ def search_assets(query: str, yfinance_repo: YfinanceRepository) -> list[SearchR
 
 
 def get_more_data(ticker: str, yfinance_repo: YfinanceRepository) -> Price | None:
-    result = yfinance_repo.get_price([ticker], date.today())
+    result, _ = yfinance_repo.get_price([ticker], date.today())
 
     if result:
         return result[0]

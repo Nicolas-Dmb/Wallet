@@ -11,15 +11,20 @@ yf.set_tz_cache_location("./tmp/yfinance_cache")
 
 class YfinanceRepository:
     # @st.cache_data(ttl=3600)
-    def get_price(self, tickers: list[str], date: date) -> list[Price]:
+    def get_price(
+        self, tickers: list[str], date: date
+    ) -> tuple[list[Price], list[str]]:
         data = yf.Tickers(tickers)
         datas: list[Price] = []
-
+        errors: list[str] = []
         for t in data.tickers.values():
             df = t.history(start=date - timedelta(days=7), end=date, auto_adjust=False)
             if df.empty:
                 logging.error(
                     f"No price data found for ticker {t.ticker} on date {date}"
+                )
+                errors.append(
+                    f"{t.ticker if t.ticker else 'Unknown ticker'}: No price data found"
                 )
                 continue
             price = Price(
@@ -30,7 +35,7 @@ class YfinanceRepository:
             )
             datas.append(price)
 
-        return datas
+        return datas, errors
 
     # @st.cache_data(ttl=3600)
     def get_currency_conversion(

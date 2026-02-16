@@ -10,21 +10,38 @@ logger = logging.getLogger(__name__)
 
 def get_momentum(
     xlsx_repo: ExcelRepository, yfinance_repo: YfinanceRepository
-) -> list[Momentum]:
+) -> tuple[list[Momentum], list[str]]:
     now = date.today()
     try:
         assetDatas = xlsx_repo.get_assets()
     except Exception as e:
         logger.error(f"Error while fetching data: {e}")
-        return []
+        return [], []
     tickers = [a.ticker for a in assetDatas]
+    errors: list[str] = []
     try:
-        today_prices = yfinance_repo.get_price(tickers, now)
-        one_m_prices = yfinance_repo.get_price(tickers, now - timedelta(days=30))
-        three_m_prices = yfinance_repo.get_price(tickers, now - timedelta(days=90))
-        six_m_prices = yfinance_repo.get_price(tickers, now - timedelta(days=180))
-        one_y_prices = yfinance_repo.get_price(tickers, now - timedelta(days=365))
-        three_y_prices = yfinance_repo.get_price(tickers, now - timedelta(days=365 * 3))
+        today_prices, errors_current_price = yfinance_repo.get_price(tickers, now)
+        errors.extend(errors_current_price)
+        one_m_prices, errors_one_m = yfinance_repo.get_price(
+            tickers, now - timedelta(days=30)
+        )
+        errors.extend(errors_one_m)
+        three_m_prices, errors_three_m = yfinance_repo.get_price(
+            tickers, now - timedelta(days=90)
+        )
+        errors.extend(errors_three_m)
+        six_m_prices, errors_six_m = yfinance_repo.get_price(
+            tickers, now - timedelta(days=180)
+        )
+        errors.extend(errors_six_m)
+        one_y_prices, errors_one_y = yfinance_repo.get_price(
+            tickers, now - timedelta(days=365)
+        )
+        errors.extend(errors_one_y)
+        three_y_prices, errors_three_y = yfinance_repo.get_price(
+            tickers, now - timedelta(days=365 * 3)
+        )
+        errors.extend(errors_three_y)
     except Exception as e:
         logger.error(f"Error while fetching data: {e}")
         return []
@@ -63,7 +80,7 @@ def get_momentum(
             three_y_price,
         )
         momentums.append(momentum)
-    return momentums
+    return momentums, errors
 
 
 def _compute_momentum(

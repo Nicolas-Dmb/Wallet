@@ -37,6 +37,7 @@ class AssetRaw:
     ticker: str
     name: str
     category: str
+    bank: list[str]
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "AssetRaw":
@@ -44,4 +45,5 @@ class AssetRaw:
             ticker=data["ticker"],
             name=data["name"],
             category=data["category"],
+            bank=data.get("bank", "").split(",") if data.get("bank") else [],
         )

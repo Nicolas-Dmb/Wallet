@@ -1,22 +1,19 @@
-from datetime import date
-
 import streamlit as st
 
-from domain.momentum import get_momentum
-from domain.valuation import get_assets_valuation
+from domain.entities.models import AssetData, Momentum
 from infrastructure import ExcelRepository, YfinanceRepository
 
 from .pages import SearchPage, momentum, valuation
 
-CURRENCY = "EUR"
 
-
-def run(excel_repo: ExcelRepository, yfinance_repo: YfinanceRepository):
+def run(
+    excel_repo: ExcelRepository,
+    yfinance_repo: YfinanceRepository,
+    momentums: tuple[list[Momentum], list[str]],
+    assets: tuple[list[AssetData], list[str]],
+):
 
     st.set_page_config(layout="wide")
-
-    momentums = get_momentum(excel_repo, yfinance_repo)
-    assets = get_assets_valuation(excel_repo, yfinance_repo, date.today(), CURRENCY)
 
     def valuation_page():
         valuation(excel_repo, assets)

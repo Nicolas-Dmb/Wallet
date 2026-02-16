@@ -5,9 +5,19 @@ from domain.charts import momentum_table
 from domain.entities import Momentum
 
 
-def momentum(momentums: list[Momentum]):
+def momentum(momentums: tuple[list[Momentum], list[str]]):
     st.title("Momentum")
-    _display_momentum(momentums)
+    errors = momentums[1]
+    st.divider()
+    _display_errors(errors)
+    valid_momentums = momentums[0]
+    _display_momentum(valid_momentums)
+
+
+def _display_errors(errors: list[str]):
+    with st.expander("Errors"):
+        for error in errors:
+            st.error(error)
 
 
 def _display_momentum(momentums: list[Momentum]):

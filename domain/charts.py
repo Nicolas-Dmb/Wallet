@@ -11,38 +11,98 @@ def bar_charts(assets: list[AssetData], categories: list[str]) -> dict[str, Any]
         category_assets = [asset for asset in assets if asset.category == category]
         category_assets_value = sum([asset.valuation for asset in category_assets])
         sum_valuation.append(category_assets_value)
-    df["Value"] = (
-        [value / sum(sum_valuation) for value in sum_valuation]
-        if sum(sum_valuation) > 0
-        else [0 for _ in sum_valuation]
-    )
+    df["Value"] = [value for value in sum_valuation]
     return df
 
 
-def table(assets: list[AssetData]) -> dict[str, Any]:
+def get_crypto_table(assets: list[AssetData]) -> dict[str, Any]:
+    crypto_assets = [asset for asset in assets if asset.category == "Crypto"]
+
+    crypto_assets.sort(key=lambda a: a.valuation, reverse=True)
+
     df = {
-        "Name": [],
-        "Current Price": [],
-        "Valuation": [],
-        "avg_buy_price": [],
-        "avg_sell_price": [],
-        "profit realized": [],
-        "profit unrealized": [],
+        "Nom": [],
+        "Prix actuel": [],
+        "Nombre": [],
+        "Valorisation": [],
+        "moyennne d'achat": [],
+        "moyennne de vente": [],
+        "profit réalisé": [],
+        "profit non réalisé": [],
     }
-    for asset in assets:
-        df["Name"].append(asset.name)
-        df["Current Price"].append(asset.price)
-        df["Valuation"].append(asset.valuation)
-        df["avg_buy_price"].append(asset.transaction.avg_buy_price)
-        df["avg_sell_price"].append(asset.transaction.avg_sell_price)
+    for asset in crypto_assets:
+        df["Nom"].append(asset.name)
+        df["Prix actuel"].append(asset.price)
+        df["Nombre"].append(asset.transaction.quantity)
+        df["Valorisation"].append(asset.valuation)
+        df["moyennne d'achat"].append(asset.transaction.avg_buy_price)
+        df["moyennne de vente"].append(asset.transaction.avg_sell_price)
         profit_realized = (
-            asset.transaction.avg_sell_price - asset.transaction.avg_buy_price
-        ) * asset.transaction.quantity
+            (asset.transaction.avg_sell_price - asset.transaction.avg_buy_price)
+            * asset.transaction.quantity_sell
+            if asset.transaction.quantity_sell > 0
+            else 0
+        )
         profit_unrealized = (
-            asset.price - asset.transaction.avg_buy_price
-        ) * asset.transaction.quantity
-        df["profit realized"].append(profit_realized)
-        df["profit unrealized"].append(profit_unrealized)
+            (asset.price - asset.transaction.avg_buy_price) * asset.transaction.quantity
+            if asset.transaction.quantity > 0
+            else 0
+        )
+        df["profit réalisé"].append(
+            f":green[{profit_realized:.2f}]"
+            if profit_realized > 0
+            else f":red[{profit_realized:.2f}]"
+        )
+        df["profit non réalisé"].append(
+            f":green[{profit_unrealized:.2f}]"
+            if profit_unrealized > 0
+            else f":red[{profit_unrealized:.2f}]"
+        )
+    return df
+
+
+def get_stock_table(assets: list[AssetData]) -> dict[str, Any]:
+    stock_assets = [asset for asset in assets if asset.category != "Crypto"]
+
+    stock_assets.sort(key=lambda a: a.valuation, reverse=True)
+    df = {
+        "Nom": [],
+        "Prix actuel": [],
+        "Nombre": [],
+        "Valorisation": [],
+        "moyennne d'achat": [],
+        "moyennne de vente": [],
+        "profit réalisé": [],
+        "profit non réalisé": [],
+    }
+    for asset in stock_assets:
+        df["Nom"].append(asset.name)
+        df["Prix actuel"].append(asset.price)
+        df["Nombre"].append(asset.transaction.quantity)
+        df["Valorisation"].append(asset.valuation)
+        df["moyennne d'achat"].append(asset.transaction.avg_buy_price)
+        df["moyennne de vente"].append(asset.transaction.avg_sell_price)
+        profit_realized = (
+            (asset.transaction.avg_sell_price - asset.transaction.avg_buy_price)
+            * asset.transaction.quantity_sell
+            if asset.transaction.quantity_sell > 0
+            else 0
+        )
+        profit_unrealized = (
+            (asset.price - asset.transaction.avg_buy_price) * asset.transaction.quantity
+            if asset.transaction.quantity > 0
+            else 0
+        )
+        df["profit réalisé"].append(
+            f":green[{profit_realized:.2f}]"
+            if profit_realized > 0
+            else f":red[{profit_realized:.2f}]"
+        )
+        df["profit non réalisé"].append(
+            f":green[{profit_unrealized:.2f}]"
+            if profit_unrealized > 0
+            else f":red[{profit_unrealized:.2f}]"
+        )
     return df
 
 
