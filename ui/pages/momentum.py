@@ -8,13 +8,14 @@ from domain.entities import Momentum
 def momentum(momentums: tuple[list[Momentum], list[str]]):
     st.title("Momentum")
     errors = momentums[1]
+    errors_set = set(errors)
     st.divider()
-    _display_errors(errors)
+    _display_errors(errors_set)
     valid_momentums = momentums[0]
     _display_momentum(valid_momentums)
 
 
-def _display_errors(errors: list[str]):
+def _display_errors(errors: set[str]):
     with st.expander("Errors"):
         for error in errors:
             st.error(error)

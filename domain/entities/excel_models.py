@@ -27,7 +27,7 @@ class TransactionRaw:
             type=TransactionType(data["type"]),
             ticker=data["ticker"],
             quantity=data["quantity"],
-            price=data["price"],
+            price=data["price/unit"],
             currency=data["currency"],
         )
 
@@ -41,9 +41,17 @@ class AssetRaw:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "AssetRaw":
+        bank_raw = data.get("Bank")
+
+        bank = (
+            str(bank_raw).split("-")
+            if isinstance(bank_raw, str) and bank_raw.strip()
+            else []
+        )
+
         return AssetRaw(
             ticker=data["ticker"],
             name=data["name"],
             category=data["category"],
-            bank=data.get("bank", "").split(",") if data.get("bank") else [],
+            bank=bank,
         )

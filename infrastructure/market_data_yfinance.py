@@ -2,6 +2,7 @@ import logging
 from datetime import date, timedelta
 from typing import Any
 
+import pandas as pd
 import yfinance as yf
 
 from domain.entities import Price
@@ -30,7 +31,7 @@ class YfinanceRepository:
             price = Price(
                 amount=df["Close"].iloc[-1],
                 currency=t.fast_info.get("currency"),
-                day=df.index[-1].strftime("%Y-%m-%d"),
+                day=pd.to_datetime(df.index[-1]),
                 ticker=t.ticker,
             )
             datas.append(price)

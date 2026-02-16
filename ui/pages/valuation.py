@@ -1,6 +1,11 @@
 import streamlit as st
 
-from domain.charts import bar_charts, get_crypto_table, get_stock_table
+from domain.charts import (
+    bar_charts,
+    get_bank_account_table,
+    get_crypto_table,
+    get_stock_table,
+)
 from domain.entities.models import AssetData
 from infrastructure import ExcelRepository
 
@@ -23,6 +28,8 @@ def valuation(
     _crypto_table(assets_list)
     st.divider()
     _stock_table(assets_list)
+    st.divider()
+    _bank_account_table(assets_list)
 
 
 def _display_errors(errors: list[str]):
@@ -52,3 +59,18 @@ def _crypto_table(assets: list[AssetData]):
 def _stock_table(assets: list[AssetData]):
     df = get_stock_table(assets)
     st.table(df)
+
+
+def _bank_account_table(assets: list[AssetData]):
+    st.subheader("Bank Accounts")
+    banks: set[str] = set()
+    for asset in assets:
+        for bank in asset.bank:
+            banks.add(bank)
+
+    for bank in banks:
+        df = get_bank_account_table(assets, bank)
+        with st.expander(
+            f"Details for {bank} - {df['Valorisation'][-1]:.2f} {CURRENCY}"
+        ):
+            st.table(df)
