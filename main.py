@@ -1,7 +1,7 @@
 import logging
 import sys
 import warnings
-from datetime import date
+from datetime import date, datetime
 
 import streamlit as st
 
@@ -19,8 +19,8 @@ CURRENCY = "EUR"
 
 
 @st.cache_resource
-def get_excel_repo(excel_path: str) -> ExcelRepository:
-    return ExcelRepository(excel_path)
+def get_excel_repo(excel_path: str, day: date) -> ExcelRepository:
+    return ExcelRepository(excel_path, day)
 
 
 @st.cache_resource
@@ -29,15 +29,19 @@ def get_yfinance_repo() -> YfinanceRepository:
 
 
 @st.cache_data(ttl=60 * 30)  # 30 min
-def cached_momentum(excel_path: str):
-    excel_repo = get_excel_repo(excel_path)
+def cached_momentum(excel_path: str, day: date):
+    excel_repo = get_excel_repo(excel_path, day)
     yfinance_repo = get_yfinance_repo()
-    return get_momentum(excel_repo, yfinance_repo)
+    return get_momentum(excel_repo, yfinance_repo, day)
 
 
 @st.cache_data(ttl=60 * 30)  # 30 min
-def cached_assets(excel_path: str, valuation_date: date, currency: str):
-    excel_repo = get_excel_repo(excel_path)
+def cached_assets(
+    excel_path: str,
+    valuation_date: date,
+    currency: str,
+):
+    excel_repo = get_excel_repo(excel_path, valuation_date)
     yfinance_repo = get_yfinance_repo()
     return get_assets_valuation(excel_repo, yfinance_repo, valuation_date, currency)
 
@@ -45,9 +49,12 @@ def cached_assets(excel_path: str, valuation_date: date, currency: str):
 def main():
     args = sys.argv[1:]
     excel_path = args[0] if args else path
+    day = (
+        datetime.strptime(args[1], "%Y-%m-%d").date() if len(args) > 1 else date.today()
+    )
 
     try:
-        excel_repo = get_excel_repo(excel_path)
+        excel_repo = get_excel_repo(excel_path, day)
     except Exception:
         logger.exception(
             "Error loading Excel repository. "
@@ -57,8 +64,8 @@ def main():
         raise
 
     yfinance_repo = get_yfinance_repo()
-    momentums = cached_momentum(excel_path)
-    assets = cached_assets(excel_path, date.today(), CURRENCY)
+    momentums = cached_momentum(excel_path, day)
+    assets = cached_assets(excel_path, day, CURRENCY)
 
     run(excel_repo, yfinance_repo, momentums, assets)
 

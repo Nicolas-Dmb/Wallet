@@ -22,12 +22,13 @@ class TransactionRaw:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "TransactionRaw":
+        print(f"Parsing transaction: {data}")
         return TransactionRaw(
             day=pd.to_datetime(data["date"]).date(),
             type=TransactionType(data["type"]),
             ticker=data["ticker"],
             quantity=data["quantity"],
-            price=data["price/unit"],
+            price=data["price_unit"],
             currency=data["currency"],
         )
 

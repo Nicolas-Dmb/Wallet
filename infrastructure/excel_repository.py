@@ -1,3 +1,5 @@
+from datetime import date
+
 import pandas as pd
 
 from domain.entities import AssetRaw, TransactionRaw
@@ -20,7 +22,7 @@ class Settings:
 
 
 class ExcelRepository:
-    def __init__(self, path: str):
+    def __init__(self, path: str, day: date):
         self.path = path
         self.transactions = pd.read_excel(
             path, sheet_name="Transactions", parse_dates=["date"]
@@ -29,6 +31,7 @@ class ExcelRepository:
         self.settings = Settings(path)
         self.price = pd.read_excel(path, sheet_name="Prices", parse_dates=["date"])
         self.fx = pd.read_excel(path, sheet_name="FX", parse_dates=["date"])
+        self.day = day
 
     def get_assets(self) -> list[AssetRaw]:
         return [
@@ -36,10 +39,12 @@ class ExcelRepository:
         ]
 
     def get_transactions(self) -> list[TransactionRaw]:
-        return [
-            TransactionRaw.from_dict(data)
-            for data in self.transactions.to_dict(orient="records")
-        ]
+        transactions: list[TransactionRaw] = []
+        for data in self.transactions.to_dict(orient="records"):
+            transaction = TransactionRaw.from_dict(data)
+            if transaction.day <= self.day:
+                transactions.append(transaction)
+        return transactions
 
     def get_categories(self) -> list[str]:
         return self.settings.categories.values.flatten().tolist()

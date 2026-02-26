@@ -9,9 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 def get_momentum(
-    xlsx_repo: ExcelRepository, yfinance_repo: YfinanceRepository
+    xlsx_repo: ExcelRepository,
+    yfinance_repo: YfinanceRepository,
+    now: date,
 ) -> tuple[list[Momentum], list[str]]:
-    now = date.today()
 
     try:
         assets_list = xlsx_repo.get_assets()
