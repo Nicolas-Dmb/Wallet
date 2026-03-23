@@ -29,8 +29,6 @@ class ExcelRepository:
         )
         self.assets = pd.read_excel(path, sheet_name="Assets")
         self.settings = Settings(path)
-        self.price = pd.read_excel(path, sheet_name="Prices", parse_dates=["date"])
-        self.fx = pd.read_excel(path, sheet_name="FX", parse_dates=["date"])
         self.day = day
 
     def get_assets(self) -> list[AssetRaw]:
