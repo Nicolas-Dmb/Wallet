@@ -29,7 +29,7 @@ class Price:
         return Price(
             amount=data["amount"],
             currency=data["currency"],
-            day=pd.to_datetime(data["date"]),
+            day=pd.to_datetime(data["date"]).date(),
             ticker=data["ticker"],
         )
 
@@ -51,8 +51,22 @@ class AssetData:
     price: float
     valuation: float
     day: date
+    """Date de valorisation demandee (aujourd'hui, ou la date simulee)."""
+    quoted_on: date
+    """Date de la cotation reellement retenue pour `price`.
+
+    Distincte de `day` : les marches ferment le week-end et les jours feries,
+    et Yahoo publie certaines valeurs liquidatives avec plusieurs jours de
+    retard. Confondre les deux revient a dater un cours du 30/12 au 31/12,
+    ce qui est precisement ce qu'une declaration fiscale ne tolere pas.
+    """
     transaction: AssetTransaction
     bank: list[str]
+
+    @property
+    def is_stale(self) -> bool:
+        """Vrai quand aucune cotation n'a ete trouvee a la date demandee."""
+        return self.quoted_on != self.day
 
     @staticmethod
     def from_dict(
@@ -66,6 +80,7 @@ class AssetData:
             price=price.amount,
             valuation=assetTransaction.quantity * price.amount,
             day=day,
+            quoted_on=price.day,
             transaction=assetTransaction,
             bank=asset.bank,
         )
