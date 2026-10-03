@@ -40,6 +40,25 @@ def _repair_is_supported() -> bool:
 REPAIR_PRICES = _repair_is_supported()
 
 
+def _last_valid_close(df: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
+    """Derniere cloture reellement cotee, avec sa date.
+
+    Yahoo renvoie regulierement une derniere barre incomplete : volume rempli,
+    `Close` vide. Un `.iloc[-1]` direct ramene alors NaN, qui se propage
+    silencieusement jusqu'au total du portefeuille (`nan`). `df.empty` ne
+    protege de rien ici, la barre existe bel et bien.
+
+    Retourne None quand aucune cloture exploitable n'est disponible, pour que
+    l'appelant traite le cas comme une absence de donnee.
+    """
+    if df.empty or "Close" not in df:
+        return None
+    closes = df["Close"].dropna()
+    if closes.empty:
+        return None
+    return float(closes.iloc[-1]), pd.to_datetime(closes.index[-1])
+
+
 class YfinanceRepository:
     # @st.cache_data(ttl=3600)
     def get_price(
@@ -55,7 +74,8 @@ class YfinanceRepository:
                 auto_adjust=False,
                 repair=REPAIR_PRICES,
             )
-            if df.empty:
+            close = _last_valid_close(df)
+            if close is None:
                 logger.error(
                     f"No price data found for ticker {t.ticker} on date {date}"
                 )
@@ -63,10 +83,11 @@ class YfinanceRepository:
                     f"{t.ticker if t.ticker else 'Unknown ticker'}: No price data found"
                 )
                 continue
+            amount, quoted_on = close
             price = Price(
-                amount=df["Close"].iloc[-1],
+                amount=amount,
                 currency=t.fast_info.get("currency"),
-                day=pd.to_datetime(df.index[-1]),
+                day=quoted_on,
                 ticker=t.ticker,
             )
             datas.append(price)
