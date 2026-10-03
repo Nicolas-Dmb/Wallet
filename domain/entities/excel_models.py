@@ -5,6 +5,8 @@ from typing import Any
 
 import pandas as pd
 
+from .normalization import canonical_ticker, clean_text
+
 
 class TransactionType(enum.Enum):
     BUY = "BUY"
@@ -22,14 +24,13 @@ class TransactionRaw:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "TransactionRaw":
-        print(f"Parsing transaction: {data}")
         return TransactionRaw(
             day=pd.to_datetime(data["date"]).date(),
-            type=TransactionType(data["type"]),
-            ticker=data["ticker"],
+            type=TransactionType(clean_text(data["type"]).upper()),
+            ticker=canonical_ticker(data["ticker"]),
             quantity=data["quantity"],
             price=data["price_unit"],
-            currency=data["currency"],
+            currency=clean_text(data["currency"]).upper(),
         )
 
 
@@ -42,17 +43,12 @@ class AssetRaw:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "AssetRaw":
-        bank_raw = data.get("Bank")
-
-        bank = (
-            str(bank_raw).split("-")
-            if isinstance(bank_raw, str) and bank_raw.strip()
-            else []
-        )
+        bank_raw = clean_text(data.get("Bank"))
+        bank = [part for part in (p.strip() for p in bank_raw.split("-")) if part]
 
         return AssetRaw(
-            ticker=data["ticker"],
-            name=data["name"],
-            category=data["category"],
+            ticker=canonical_ticker(data["ticker"]),
+            name=clean_text(data["name"]),
+            category=clean_text(data["category"]),
             bank=bank,
         )

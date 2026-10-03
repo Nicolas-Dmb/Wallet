@@ -7,6 +7,7 @@ from domain.entities import (
     Price,
     TransactionRaw,
     TransactionType,
+    canonical_ticker,
 )
 from infrastructure.excel_repository import ExcelRepository
 from infrastructure.market_data_yfinance import YfinanceRepository
@@ -29,7 +30,10 @@ def get_assets_valuation(
         logger.exception(f"Error while fetching data: {e}")
         return [], [f"Error while fetching data: {e}"]
     assets: list[AssetData] = []
-    prices_by_ticker = {p.ticker: p for p in prices}
+    # yfinance renvoie les tickers en majuscules : on reindexe sur la meme
+    # forme canonique que celle lue depuis l'Excel, sinon l'appariement echoue
+    # silencieusement pour tout ticker qui n'y etait pas deja en majuscules.
+    prices_by_ticker = {canonical_ticker(p.ticker): p for p in prices}
 
     for asset in assetDatas:
         transactionData = _extract_asset_count(
