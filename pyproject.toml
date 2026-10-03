@@ -9,5 +9,18 @@ dependencies = [
     "pandas>=2.3.3",
     "streamlit>=1.54.0",
     "xlsxwriter>=3.2.9",
-    "yfinance>=1.1.0",
+    "yfinance>=1.7.0",
+    # Dependances optionnelles de yfinance, requises par `repair=True`.
+    # Sans elles, yfinance renvoie un DataFrame VIDE au lieu de lever une erreur
+    # (verifie sur 1.1.0 et 1.7.0) -> elles sont declarees en dur, pas en extra.
+    "scipy>=1.14",
+    "scikit-learn>=1.5",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
