@@ -40,6 +40,13 @@ class AssetRaw:
     name: str
     category: str
     bank: list[str]
+    currency: str
+    """Devise de cotation declaree dans l'Excel. Vide si la colonne est absente.
+
+    Sert de reference pour controler celle que Yahoo rapporte : un desaccord
+    signale generalement une mauvaise place de cotation (`TTE`, l'ADR NYSE en
+    USD, au lieu de `TTE.PA` sur Euronext).
+    """
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "AssetRaw":
@@ -51,4 +58,5 @@ class AssetRaw:
             name=clean_text(data["name"]),
             category=clean_text(data["category"]),
             bank=bank,
+            currency=clean_text(data.get("currency")).upper(),
         )
