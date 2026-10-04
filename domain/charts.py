@@ -1,6 +1,6 @@
 from typing import Any, Callable
 
-from domain.entities import AssetData
+from domain.entities import AssetData, UnvaluedAsset
 from domain.entities.models import Momentum
 
 
@@ -37,10 +37,12 @@ def _get_assets_table(
     for asset in selected:
         df["Nom"].append(asset.name)
         df["Prix actuel"].append(asset.price)
-        # Signale les cours qui ne datent pas du jour demande : week-end, jour
-        # ferie, ou valeur liquidative publiee en retard.
+        # Ne signale que les cours vraiment perimes. Comparer les dates a
+        # l'identique marquait tout le portefeuille hors crypto des le samedi.
         df["Coté le"].append(
-            f":orange[{asset.quoted_on}]" if asset.is_stale else str(asset.quoted_on)
+            f":orange[{asset.quoted_on}]"
+            if asset.is_outdated
+            else str(asset.quoted_on)
         )
         df["Nombre"].append(asset.transaction.quantity)
         df["Valorisation"].append(asset.valuation)
@@ -134,3 +136,14 @@ def get_bank_account_table(assets: list[AssetData], bank_name: str) -> dict[str,
     df["Nombre"].append("")
     df["Valorisation"].append(sum([asset.valuation for asset in assets_with_bank]))
     return df
+
+
+def unvalued_table(unvalued: list[UnvaluedAsset]) -> dict[str, Any]:
+    """Actifs detenus mais absents du total, avec la raison."""
+    rows = sorted(unvalued, key=lambda u: abs(u.quantity), reverse=True)
+    return {
+        "Nom": [u.name or u.ticker for u in rows],
+        "Ticker": [u.ticker for u in rows],
+        "Nombre": [u.quantity for u in rows],
+        "Pourquoi": [u.reason for u in rows],
+    }
