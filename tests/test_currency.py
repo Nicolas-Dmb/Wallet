@@ -8,10 +8,12 @@ retournait le prix NON CONVERTI -- des USD presentes comme des EUR.
 
 from datetime import date
 
+import pandas as pd
 import pytest
 
 from domain.entities import AssetRaw, Price
 from domain.valuation import _convert_currency_if_needed, _resolve_quoted_currency
+from infrastructure.price_history import PriceHistory
 
 
 def _asset(currency: str, ticker: str = "TTE") -> AssetRaw:
@@ -93,22 +95,39 @@ def test_asset_is_dropped_when_no_currency_is_known_anywhere() -> None:
 
 
 class _Rate:
+    """Repli par appel unitaire, utilise seulement hors du lot batche."""
+
     def __init__(self, rate: float | Exception):
         self.rate = rate
+        self.calls = 0
 
     def get_currency_conversion(self, from_currency, to_currency, day) -> float:
+        self.calls += 1
         if isinstance(self.rate, Exception):
             raise self.rate
         return self.rate
 
 
-def test_price_is_converted_with_the_rate() -> None:
-    errors: list[str] = []
+def _history(rates: dict[str, float] | None = None) -> PriceHistory:
+    """PriceHistory reelle, pour exercer aussi la logique de recherche asof."""
+    rates = rates or {}
+    index = pd.to_datetime(["2026-10-01", "2026-10-02"])
+    closes = pd.DataFrame({t: [v, v] for t, v in rates.items()}, index=index)
+    return PriceHistory(closes=closes, adjusted_closes=closes.copy())
 
-    converted = _convert_currency_if_needed("EUR", _price("USD"), _Rate(0.8883), errors)
+
+def test_rate_is_taken_from_the_batch_without_any_extra_call() -> None:
+    errors: list[str] = []
+    fallback = _Rate(999.0)
+
+    converted = _convert_currency_if_needed(
+        "EUR", _price("USD"), _history({"USDEUR=X": 0.8883}), fallback, errors
+    )
 
     assert converted.amount == pytest.approx(84.40 * 0.8883)
     assert converted.currency == "EUR"
+    # Le gain du batch tient a ceci : aucun appel reseau supplementaire.
+    assert fallback.calls == 0
     assert errors == []
 
 
@@ -116,7 +135,25 @@ def test_no_conversion_when_already_in_the_target_currency() -> None:
     errors: list[str] = []
     price = _price("EUR")
 
-    assert _convert_currency_if_needed("EUR", price, _Rate(0.0), errors) is price
+    assert (
+        _convert_currency_if_needed("EUR", price, _history(), _Rate(0.0), errors)
+        is price
+    )
+
+
+def test_pair_absent_from_the_batch_falls_back_to_a_single_call() -> None:
+    """Cas TTE : Yahoo cote en USD alors que l'Excel declarait EUR, donc la
+    paire n'etait pas previsible avant le telechargement."""
+    errors: list[str] = []
+    fallback = _Rate(0.8883)
+
+    converted = _convert_currency_if_needed(
+        "EUR", _price("USD"), _history(), fallback, errors
+    )
+
+    assert converted.amount == pytest.approx(84.40 * 0.8883)
+    assert fallback.calls == 1
+    assert errors == []
 
 
 def test_unavailable_rate_drops_the_asset_instead_of_faking_the_conversion() -> None:
@@ -125,7 +162,7 @@ def test_unavailable_rate_drops_the_asset_instead_of_faking_the_conversion() -> 
     errors: list[str] = []
 
     result = _convert_currency_if_needed(
-        "EUR", _price("USD"), _Rate(ValueError("no rate")), errors
+        "EUR", _price("USD"), _history(), _Rate(ValueError("no rate")), errors
     )
 
     assert result is None

@@ -1,116 +1,97 @@
 import logging
 from datetime import date, timedelta
 
-from domain.entities.models import AssetData, Momentum, Price
+from domain.entities import AssetRaw
+from domain.entities.models import Momentum
 from infrastructure.excel_repository import ExcelRepository
-from infrastructure.market_data_yfinance import YfinanceRepository
+from infrastructure.price_history import PriceHistory
 
 logger = logging.getLogger(__name__)
+
+# Les six points de mesure du momentum. Ils etaient recuperes par six appels
+# reseau distincts, soit 306 requetes pour 51 tickers ; ils sont desormais lus
+# dans la seule serie telechargee.
+_HORIZONS_DAYS = {
+    "1m": 30,
+    "3m": 90,
+    "6m": 180,
+    "1y": 365,
+    "3y": 365 * 3,
+}
+
+LOOKBACK = timedelta(days=max(_HORIZONS_DAYS.values()))
+
+
+def history_window(day: date) -> tuple[date, date]:
+    """Plage couvrant tous les horizons de momentum a la date demandee.
+
+    Une marge de 10 jours absorbe les week-ends et jours feries : sans elle,
+    l'horizon 3 ans peut tomber un jour non cote et perdre son point de
+    mesure.
+    """
+    return day - LOOKBACK - timedelta(days=10), day
 
 
 def get_momentum(
     xlsx_repo: ExcelRepository,
-    yfinance_repo: YfinanceRepository,
+    history: PriceHistory,
     now: date,
 ) -> tuple[list[Momentum], list[str]]:
-
     try:
         assets_list = xlsx_repo.get_assets()
     except Exception as e:
         logger.error(f"Error while fetching data: {e}")
-        return [], []
-
-    tickers = sorted({a.ticker for a in assets_list})
-    errors: list[str] = []
-
-    try:
-        today_prices_list, err = yfinance_repo.get_price(tickers, now)
-        errors += err
-        one_m_list, err = yfinance_repo.get_price(tickers, now - timedelta(days=30))
-        errors += err
-        three_m_list, err = yfinance_repo.get_price(tickers, now - timedelta(days=90))
-        errors += err
-        six_m_list, err = yfinance_repo.get_price(tickers, now - timedelta(days=180))
-        errors += err
-        one_y_list, err = yfinance_repo.get_price(tickers, now - timedelta(days=365))
-        errors += err
-        three_y_list, err = yfinance_repo.get_price(
-            tickers, now - timedelta(days=365 * 3)
-        )
-        errors += err
-    except Exception as e:
-        logger.error(f"Error while fetching data: {e}")
-        return [], errors
-
-    assets = {a.ticker: a for a in assets_list}
-    today_prices = {p.ticker: p for p in today_prices_list}
-    one_m_prices = {p.ticker: p for p in one_m_list}
-    three_m_prices = {p.ticker: p for p in three_m_list}
-    six_m_prices = {p.ticker: p for p in six_m_list}
-    one_y_prices = {p.ticker: p for p in one_y_list}
-    three_y_prices = {p.ticker: p for p in three_y_list}
+        return [], [f"Error while fetching data: {e}"]
 
     momentums: list[Momentum] = []
-    for ticker in tickers:
-        asset = assets.get(ticker)
-        today_price = today_prices.get(ticker)
-        one_m_price = one_m_prices.get(ticker)
-        three_m_price = three_m_prices.get(ticker)
-        six_m_price = six_m_prices.get(ticker)
-        one_y_price = one_y_prices.get(ticker)
-        three_y_price = three_y_prices.get(ticker)
+    errors: list[str] = []
 
-        if not all(
-            [
-                asset,
-                today_price,
-                one_m_price,
-                three_m_price,
-                six_m_price,
-                one_y_price,
-                three_y_price,
-            ]
-        ):
-            logger.warning(f"Missing data for {ticker}, skipping momentum calculation.")
+    for asset in sorted(assets_list, key=lambda a: a.ticker):
+        changes = _percentage_changes(asset.ticker, history, now, errors)
+        if changes is None:
             continue
-
-        momentums.append(
-            _compute_momentum(
-                asset,
-                today_price,
-                one_m_price,
-                three_m_price,
-                six_m_price,
-                one_y_price,
-                three_y_price,
-            )
-        )
+        momentums.append(_compute_momentum(asset, changes))
 
     return momentums, errors
 
 
-def _compute_momentum(
-    asset: AssetData,
-    today_price: Price,
-    one_m_price: Price,
-    three_m_price: Price,
-    six_m_price: Price,
-    one_y_price: Price,
-    three_y_price: Price,
-) -> Momentum:
-    percentage_change_1m = pct_change(today_price.amount, one_m_price.amount)
+def _percentage_changes(
+    ticker: str,
+    history: PriceHistory,
+    now: date,
+    errors: list[str],
+) -> dict[str, float] | None:
+    """Variations en % pour chaque horizon, ou None si un point manque.
 
-    percentage_change_3m = pct_change(today_price.amount, three_m_price.amount)
-    percentage_change_6m = pct_change(today_price.amount, six_m_price.amount)
-    percentage_change_1y = pct_change(today_price.amount, one_y_price.amount)
-    percentage_change_3y = pct_change(today_price.amount, three_y_price.amount)
+    Les cours ajustes des dividendes seraient preferables ici : voir #8.
+    """
+    today = history.close_at(ticker, now)
+    if today is None:
+        errors.append(f"{ticker}: No price data found")
+        return None
+
+    changes: dict[str, float] = {}
+    for label, days in _HORIZONS_DAYS.items():
+        past = history.close_at(ticker, now - timedelta(days=days))
+        if past is None:
+            # Un actif cote depuis moins longtemps que l'horizon demande n'a
+            # pas de momentum sur cet horizon. Lui en calculer un sur sa seule
+            # periode disponible gonflerait son classement.
+            errors.append(f"{ticker}: pas d'historique a {label}, momentum ignore")
+            return None
+        changes[label] = pct_change(today[0], past[0])
+
+    return changes
+
+
+def _compute_momentum(asset: AssetRaw, changes: dict[str, float]) -> Momentum:
     return Momentum(
         ticker=asset.ticker,
         name=asset.name,
         category=asset.category,
-        percentage_long_term=percentage_change_3y,
-        percentage_mid_term=(percentage_change_6m + percentage_change_1y) / 2,
-        percentage_short_term=(percentage_change_1m + percentage_change_3m) / 2,
+        percentage_long_term=changes["3y"],
+        percentage_mid_term=(changes["6m"] + changes["1y"]) / 2,
+        percentage_short_term=(changes["1m"] + changes["3m"]) / 2,
     )
 
 
