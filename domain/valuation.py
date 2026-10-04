@@ -13,43 +13,69 @@ from domain.entities import (
 )
 from infrastructure.excel_repository import ExcelRepository
 from infrastructure.market_data_yfinance import YfinanceRepository
+from infrastructure.price_history import PriceHistory, fx_ticker
 
 logger = logging.getLogger(__name__)
+
+
+def required_tickers(assets: list[AssetRaw], target_currency: str) -> list[str]:
+    """Tout ce qu'il faut telecharger : les actifs et leurs paires de change.
+
+    Les paires sont deduites des devises declarees dans l'Excel, connues avant
+    le telechargement, ce qui permet de les faire tenir dans le meme appel que
+    les cours.
+    """
+    tickers = {canonical_ticker(a.ticker) for a in assets}
+    tickers |= {
+        fx_ticker(a.currency, target_currency)
+        for a in assets
+        if a.currency and a.currency != target_currency
+    }
+    return sorted(t for t in tickers if t)
 
 
 def get_assets_valuation(
     xlsx_repo: ExcelRepository,
     yfinance_repo: YfinanceRepository,
+    history: PriceHistory,
     date: date = date.today(),
     currency: str = "EUR",
 ) -> tuple[list[AssetData], list[str]]:
     try:
         assetDatas = xlsx_repo.get_assets()
         transactions = xlsx_repo.get_transactions()
-        tickers = sorted({a.ticker for a in assetDatas})
-        prices, errors = yfinance_repo.get_price(tickers, date)
     except Exception as e:
         logger.exception(f"Error while fetching data: {e}")
         return [], [f"Error while fetching data: {e}"]
+
     assets: list[AssetData] = []
-    # yfinance renvoie les tickers en majuscules : on reindexe sur la meme
-    # forme canonique que celle lue depuis l'Excel, sinon l'appariement echoue
-    # silencieusement pour tout ticker qui n'y etait pas deja en majuscules.
-    prices_by_ticker = {canonical_ticker(p.ticker): p for p in prices}
+    errors: list[str] = []
 
     for asset in assetDatas:
         transactionData = _extract_asset_count(
             asset.ticker, transactions, date, currency, errors
         )
-        price = prices_by_ticker.get(asset.ticker)
-        if price is None:
+        close = history.close_at(asset.ticker, date)
+        if close is None:
             logger.warning(f"No price found for ticker {asset.ticker} on date {date}")
+            errors.append(f"{asset.ticker}: No price data found")
             continue
-        quoted_currency = _resolve_quoted_currency(asset, price, errors)
+        amount, quoted_on = close
+        price = Price(
+            amount=amount,
+            currency=history.currency(asset.ticker),
+            day=quoted_on,
+            ticker=asset.ticker,
+        )
+        quoted_currency = _resolve_quoted_currency(
+            asset, price, errors, history.resolved_elsewhere.get(asset.ticker)
+        )
         if quoted_currency is None:
             continue
         price = replace(price, currency=quoted_currency)
-        price = _convert_currency_if_needed(currency, price, yfinance_repo, errors)
+        price = _convert_currency_if_needed(
+            currency, price, history, yfinance_repo, errors
+        )
         if price is None:
             continue
         assets.append(AssetData.from_dict(price, asset, transactionData, date))
@@ -97,6 +123,7 @@ def _resolve_quoted_currency(
     asset: AssetRaw,
     price: Price,
     errors: list[str],
+    resolved_elsewhere: str | None = None,
 ) -> str | None:
     """Devise dans laquelle le cours recupere est exprime.
 
@@ -109,13 +136,22 @@ def _resolve_quoted_currency(
     reported = price.currency
 
     if not reported:
-        # fast_info ne rapporte pas toujours de devise. Sans repli, le prix
-        # etait traite comme deja libelle dans la devise cible.
+        # Yahoo ne rapporte pas toujours de devise exploitable. Sans repli, le
+        # prix etait traite comme deja libelle dans la devise cible.
         if declared:
-            errors.append(
-                f"{asset.ticker}: Yahoo n'indique aucune devise, "
-                f"utilisation de {declared} declaree dans l'Excel"
-            )
+            if resolved_elsewhere:
+                errors.append(
+                    f"{asset.ticker}: Yahoo a resolu ce ticker vers "
+                    f"{resolved_elsewhere}, une autre cotation, et annonce sa "
+                    f"devise plutot que celle de la serie renvoyee. "
+                    f"Utilisation de {declared} declaree dans l'Excel. "
+                    f"Un ticker explicite eviterait l'ambiguite."
+                )
+            else:
+                errors.append(
+                    f"{asset.ticker}: Yahoo n'indique aucune devise, "
+                    f"utilisation de {declared} declaree dans l'Excel"
+                )
             return declared
         errors.append(
             f"{asset.ticker}: devise introuvable (ni chez Yahoo, ni dans l'Excel), "
@@ -137,11 +173,24 @@ def _resolve_quoted_currency(
 def _convert_currency_if_needed(
     currency_choice: str,
     price: Price,
+    history: PriceHistory,
     yfinance_repo: YfinanceRepository,
     errors: list[str],
 ) -> Price | None:
     if price.currency == currency_choice:
         return price
+
+    # Cas courant : la paire a ete telechargee avec les cours, aucun appel.
+    batched = history.rate_at(price.currency, currency_choice, price.day)
+    if batched is not None:
+        return replace(
+            price,
+            amount=price.amount * batched[0],
+            currency=currency_choice,
+        )
+
+    # Repli : la devise rapportee par Yahoo differe de celle declaree, donc la
+    # paire n'etait pas previsible avant le telechargement (cas TTE).
     try:
         conversion_rate = yfinance_repo.get_currency_conversion(
             price.currency, currency_choice, price.day

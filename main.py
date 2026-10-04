@@ -5,8 +5,8 @@ from datetime import date, datetime
 
 import streamlit as st
 
-from domain.momentum import get_momentum
-from domain.valuation import get_assets_valuation
+from domain.momentum import get_momentum, history_window
+from domain.valuation import get_assets_valuation, required_tickers
 from infrastructure.excel_repository import ExcelRepository
 from infrastructure.market_data_yfinance import YfinanceRepository
 from ui.streamlit_app import run
@@ -29,21 +29,26 @@ def get_yfinance_repo() -> YfinanceRepository:
 
 
 @st.cache_data(ttl=60 * 30)  # 30 min
-def cached_momentum(excel_path: str, day: date):
+def cached_market_view(excel_path: str, day: date, currency: str):
+    """Valorisation et momentum derives d'UN SEUL telechargement.
+
+    Les deux etaient calcules par des fonctions mises en cache separement,
+    chacune refaisant ses propres appels reseau. La plage du momentum (3 ans)
+    englobe celle dont la valorisation a besoin, donc une seule requete suffit
+    aux deux -- et le cache ne peut plus les desynchroniser.
+    """
     excel_repo = get_excel_repo(excel_path, day)
     yfinance_repo = get_yfinance_repo()
-    return get_momentum(excel_repo, yfinance_repo, day)
 
+    assets_raw = excel_repo.get_assets()
+    start, end = history_window(day)
+    history = yfinance_repo.get_history(
+        required_tickers(assets_raw, currency), start, end
+    )
 
-@st.cache_data(ttl=60 * 30)  # 30 min
-def cached_assets(
-    excel_path: str,
-    valuation_date: date,
-    currency: str,
-):
-    excel_repo = get_excel_repo(excel_path, valuation_date)
-    yfinance_repo = get_yfinance_repo()
-    return get_assets_valuation(excel_repo, yfinance_repo, valuation_date, currency)
+    assets = get_assets_valuation(excel_repo, yfinance_repo, history, day, currency)
+    momentums = get_momentum(excel_repo, history, day)
+    return assets, momentums
 
 
 def main():
@@ -64,8 +69,7 @@ def main():
         raise
 
     yfinance_repo = get_yfinance_repo()
-    momentums = cached_momentum(excel_path, day)
-    assets = cached_assets(excel_path, day, CURRENCY)
+    assets, momentums = cached_market_view(excel_path, day, CURRENCY)
 
     run(excel_repo, yfinance_repo, momentums, assets)
 

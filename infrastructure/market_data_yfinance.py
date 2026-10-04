@@ -7,6 +7,7 @@ import pandas as pd
 import yfinance as yf
 
 from domain.entities import Price
+from infrastructure.price_history import PriceHistory
 
 yf.set_tz_cache_location("./tmp/yfinance_cache")
 
@@ -51,6 +52,28 @@ def _quote_window(day: date) -> tuple[date, date]:
     return day - _LOOKBACK, day + timedelta(days=1)
 
 
+def _is_other_listing(requested: str, resolved: str | None) -> bool:
+    """Yahoo a-t-il repondu avec les metadonnees d'une autre cotation ?
+
+    Les paires de change sont exclues : `USDEUR=X` se resout legitimement en
+    `EUR=X`, et leur devise n'est de toute facon jamais utilisee.
+    """
+    if not resolved or requested.endswith("=X"):
+        return False
+    return resolved.strip().upper() != requested.strip().upper()
+
+
+def _field(frame: pd.DataFrame, name: str) -> pd.DataFrame:
+    """Extrait un champ OHLCV de la reponse batchee, colonnes = tickers.
+
+    `yf.Tickers.history()` renvoie toujours des colonnes a deux niveaux, meme
+    pour un ticker unique.
+    """
+    if frame.empty or name not in frame.columns.get_level_values(0):
+        return pd.DataFrame()
+    return frame[name]
+
+
 def _last_valid_close(df: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
     """Derniere cloture reellement cotee, avec sa date.
 
@@ -71,39 +94,74 @@ def _last_valid_close(df: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
 
 
 class YfinanceRepository:
-    # @st.cache_data(ttl=3600)
+    def get_history(
+        self, tickers: list[str], start: date, end: date
+    ) -> PriceHistory:
+        """Recupere toute la plage demandee en UN appel reseau.
+
+        `yf.Tickers(...).history()` batche la requete et renseigne au passage
+        `history_metadata` de chaque ticker : la devise de cotation arrive donc
+        gratuitement, sans les 51 requetes `fast_info` qu'imposait la boucle.
+        """
+        if not tickers:
+            return PriceHistory(closes=pd.DataFrame(), adjusted_closes=pd.DataFrame())
+
+        requested = sorted(set(tickers))
+        handles = yf.Tickers(requested)
+        frame = handles.history(
+            start=start,
+            end=end + timedelta(days=1),
+            auto_adjust=False,
+            repair=REPAIR_PRICES,
+            actions=True,
+            progress=False,
+        )
+
+        currencies: dict[str, str | None] = {}
+        resolved_elsewhere: dict[str, str] = {}
+        for ticker, handle in handles.tickers.items():
+            meta = getattr(handle, "history_metadata", None) or {}
+            resolved = meta.get("symbol")
+            if _is_other_listing(ticker, resolved):
+                # Les metadonnees decrivent une autre cotation que la serie
+                # renvoyee : leur devise n'est pas fiable pour convertir.
+                resolved_elsewhere[ticker] = resolved
+                currencies[ticker] = None
+                continue
+            currencies[ticker] = meta.get("currency")
+
+        return PriceHistory(
+            closes=_field(frame, "Close"),
+            adjusted_closes=_field(frame, "Adj Close"),
+            currencies=currencies,
+            resolved_elsewhere=resolved_elsewhere,
+        )
+
     def get_price(
         self, tickers: list[str], date: date
     ) -> tuple[list[Price], list[str]]:
-        data = yf.Tickers(tickers)
+        start, end = _quote_window(date)
+        history = self.get_history(tickers, start, end - timedelta(days=1))
+
         datas: list[Price] = []
         errors: list[str] = []
-        start, end = _quote_window(date)
-        for t in data.tickers.values():
-            df = t.history(
-                start=start,
-                end=end,
-                auto_adjust=False,
-                repair=REPAIR_PRICES,
-            )
-            close = _last_valid_close(df)
+        for ticker in sorted(set(tickers)):
+            close = history.close_at(ticker, date)
             if close is None:
-                logger.error(
-                    f"No price data found for ticker {t.ticker} on date {date}"
-                )
+                logger.error(f"No price data found for ticker {ticker} on date {date}")
                 errors.append(
-                    f"{t.ticker if t.ticker else 'Unknown ticker'}: No price data found"
+                    f"{ticker if ticker else 'Unknown ticker'}: No price data found"
                 )
                 continue
             amount, quoted_on = close
-            price = Price(
-                amount=amount,
-                currency=t.fast_info.get("currency"),
-                day=quoted_on.date(),
-                ticker=t.ticker,
+            datas.append(
+                Price(
+                    amount=amount,
+                    currency=history.currency(ticker),
+                    day=quoted_on,
+                    ticker=ticker,
+                )
             )
-            datas.append(price)
-
         return datas, errors
 
     # @st.cache_data(ttl=3600)
