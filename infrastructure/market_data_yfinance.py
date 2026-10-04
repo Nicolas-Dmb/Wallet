@@ -119,7 +119,12 @@ class YfinanceRepository:
             auto_adjust=False,
             repair=REPAIR_PRICES,
         )
-        return df["Close"].iloc[-1]
+        # Meme piege que pour les cours : un `.iloc[-1]` direct ramenait un NaN
+        # qui se propageait dans la valorisation convertie.
+        rate = _last_valid_close(df)
+        if rate is None:
+            raise ValueError(f"No exchange rate found for {ticker} on {date}")
+        return rate[0]
 
     def search_assets(self, query: str) -> list[dict[str, Any]]:
         result = yf.Search(query)
