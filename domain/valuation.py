@@ -6,11 +6,16 @@ from domain.entities import (
     AssetData,
     AssetRaw,
     AssetTransaction,
+    Diagnostic,
     Price,
+    Severity,
     TransactionRaw,
     TransactionType,
+    UnvaluedAsset,
+    ValuationReport,
     canonical_ticker,
 )
+from domain.validation import check_transactions
 from infrastructure.excel_repository import ExcelRepository
 from infrastructure.market_data_yfinance import YfinanceRepository
 from infrastructure.price_history import PriceHistory, fx_ticker
@@ -40,25 +45,30 @@ def get_assets_valuation(
     history: PriceHistory,
     date: date = date.today(),
     currency: str = "EUR",
-) -> tuple[list[AssetData], list[str]]:
+) -> ValuationReport:
     try:
         assetDatas = xlsx_repo.get_assets()
         transactions = xlsx_repo.get_transactions()
     except Exception as e:
         logger.exception(f"Error while fetching data: {e}")
-        return [], [f"Error while fetching data: {e}"]
+        return ValuationReport(diagnostics=[Diagnostic(message=f"Excel illisible: {e}")])
 
-    assets: list[AssetData] = []
+    report = ValuationReport(
+        diagnostics=check_transactions(assetDatas, transactions, date)
+    )
     errors: list[str] = []
 
     for asset in assetDatas:
         transactionData = _extract_asset_count(
             asset.ticker, transactions, date, currency, errors
         )
+
         close = history.close_at(asset.ticker, date)
         if close is None:
             logger.warning(f"No price found for ticker {asset.ticker} on date {date}")
-            errors.append(f"{asset.ticker}: No price data found")
+            report.unvalued.append(
+                _unvalued(asset, transactionData, "aucune cotation trouvee chez Yahoo")
+            )
             continue
         amount, quoted_on = close
         price = Price(
@@ -71,15 +81,70 @@ def get_assets_valuation(
             asset, price, errors, history.resolved_elsewhere.get(asset.ticker)
         )
         if quoted_currency is None:
+            report.unvalued.append(
+                _unvalued(asset, transactionData, "devise de cotation inconnue")
+            )
             continue
         price = replace(price, currency=quoted_currency)
         price = _convert_currency_if_needed(
             currency, price, history, yfinance_repo, errors
         )
         if price is None:
+            report.unvalued.append(
+                _unvalued(
+                    asset,
+                    transactionData,
+                    f"taux de change vers {currency} indisponible",
+                )
+            )
             continue
-        assets.append(AssetData.from_dict(price, asset, transactionData, date))
-    return assets, errors
+        report.assets.append(
+            AssetData.from_dict(price, asset, transactionData, date)
+        )
+
+    report.diagnostics.extend(_as_diagnostics(errors))
+    report.diagnostics.extend(_outdated_diagnostics(report.assets))
+    return report
+
+
+def _unvalued(
+    asset: AssetRaw, transaction: AssetTransaction, reason: str
+) -> UnvaluedAsset:
+    """Conserve l'actif dans le rapport au lieu de l'effacer.
+
+    Un `continue` nu le retirait du tableau ET du total : le montant manquant
+    devenait indiscernable d'un actif reellement absent du portefeuille.
+    """
+    return UnvaluedAsset(
+        ticker=asset.ticker,
+        name=asset.name,
+        quantity=transaction.quantity,
+        reason=reason,
+    )
+
+
+def _as_diagnostics(messages: list[str]) -> list[Diagnostic]:
+    """Convertit les messages encore produits en texte libre.
+
+    `_extract_asset_count` et la resolution de devise accumulent des chaines ;
+    les convertir ici evite de propager deux formats dans l'interface.
+    """
+    return [Diagnostic(message=m) for m in dict.fromkeys(messages)]
+
+
+def _outdated_diagnostics(assets: list[AssetData]) -> list[Diagnostic]:
+    return [
+        Diagnostic(
+            ticker=asset.ticker,
+            severity=Severity.WARNING,
+            message=(
+                f"cours du {asset.quoted_on}, soit {asset.trading_days_stale} "
+                f"jours ouvres avant la date demandee"
+            ),
+        )
+        for asset in assets
+        if asset.is_outdated
+    ]
 
 
 def _extract_asset_count(
