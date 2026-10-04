@@ -42,7 +42,13 @@ def test_window_is_consistent_across_a_year_boundary() -> None:
 def _asset(day: date, quoted_on: date) -> AssetData:
     return AssetData.from_dict(
         price=Price(amount=100.0, currency="EUR", day=quoted_on, ticker="CW8.PA"),
-        asset=AssetRaw(ticker="CW8.PA", name="Amundi MSCI World", category="ETF", bank=[]),
+        asset=AssetRaw(
+            ticker="CW8.PA",
+            name="Amundi MSCI World",
+            category="ETF",
+            bank=[],
+            currency="EUR",
+        ),
         assetTransaction=AssetTransaction(
             quantity=1.0, avg_buy_price=90.0, avg_sell_price=0.0, quantity_sell=0.0
         ),
