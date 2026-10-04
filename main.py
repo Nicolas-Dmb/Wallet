@@ -46,9 +46,9 @@ def cached_market_view(excel_path: str, day: date, currency: str):
         required_tickers(assets_raw, currency), start, end
     )
 
-    assets = get_assets_valuation(excel_repo, yfinance_repo, history, day, currency)
+    report = get_assets_valuation(excel_repo, yfinance_repo, history, day, currency)
     momentums = get_momentum(excel_repo, history, day)
-    return assets, momentums
+    return report, momentums
 
 
 def main():
@@ -69,9 +69,9 @@ def main():
         raise
 
     yfinance_repo = get_yfinance_repo()
-    assets, momentums = cached_market_view(excel_path, day, CURRENCY)
+    report, momentums = cached_market_view(excel_path, day, CURRENCY)
 
-    run(excel_repo, yfinance_repo, momentums, assets)
+    run(excel_repo, yfinance_repo, momentums, report)
 
 
 if __name__ == "__main__":
