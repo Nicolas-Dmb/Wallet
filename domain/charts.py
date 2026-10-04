@@ -25,6 +25,7 @@ def _get_assets_table(
     df = {
         "Nom": [],
         "Prix actuel": [],
+        "Coté le": [],
         "Nombre": [],
         "Valorisation": [],
         "moyennne d'achat": [],
@@ -36,6 +37,11 @@ def _get_assets_table(
     for asset in selected:
         df["Nom"].append(asset.name)
         df["Prix actuel"].append(asset.price)
+        # Signale les cours qui ne datent pas du jour demande : week-end, jour
+        # ferie, ou valeur liquidative publiee en retard.
+        df["Coté le"].append(
+            f":orange[{asset.quoted_on}]" if asset.is_stale else str(asset.quoted_on)
+        )
         df["Nombre"].append(asset.transaction.quantity)
         df["Valorisation"].append(asset.valuation)
         df["moyennne d'achat"].append(asset.transaction.avg_buy_price)

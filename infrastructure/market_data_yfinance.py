@@ -40,6 +40,17 @@ def _repair_is_supported() -> bool:
 REPAIR_PRICES = _repair_is_supported()
 
 
+# `end` est EXCLUSIF chez yfinance : history(end="2021-12-31") s'arrete au
+# 30/12. Sans ce decalage, toute valorisation a une date passee utilise le
+# cours de la veille -- 46 306 EUR au lieu de 47 178 EUR pour BTC au 31/12/2021.
+_LOOKBACK = timedelta(days=7)
+
+
+def _quote_window(day: date) -> tuple[date, date]:
+    """Fenetre a passer a yfinance pour obtenir une cotation AU jour demande."""
+    return day - _LOOKBACK, day + timedelta(days=1)
+
+
 def _last_valid_close(df: pd.DataFrame) -> tuple[float, pd.Timestamp] | None:
     """Derniere cloture reellement cotee, avec sa date.
 
@@ -67,10 +78,11 @@ class YfinanceRepository:
         data = yf.Tickers(tickers)
         datas: list[Price] = []
         errors: list[str] = []
+        start, end = _quote_window(date)
         for t in data.tickers.values():
             df = t.history(
-                start=date - timedelta(days=7),
-                end=date,
+                start=start,
+                end=end,
                 auto_adjust=False,
                 repair=REPAIR_PRICES,
             )
@@ -87,7 +99,7 @@ class YfinanceRepository:
             price = Price(
                 amount=amount,
                 currency=t.fast_info.get("currency"),
-                day=quoted_on,
+                day=quoted_on.date(),
                 ticker=t.ticker,
             )
             datas.append(price)
@@ -100,13 +112,19 @@ class YfinanceRepository:
     ) -> float:
         ticker = f"{from_currency}{to_currency}=X"
         data = yf.Ticker(ticker)
+        start, end = _quote_window(date)
         df = data.history(
-            start=date - timedelta(days=7),
-            end=date,
+            start=start,
+            end=end,
             auto_adjust=False,
             repair=REPAIR_PRICES,
         )
-        return df["Close"].iloc[-1]
+        # Meme piege que pour les cours : un `.iloc[-1]` direct ramenait un NaN
+        # qui se propageait dans la valorisation convertie.
+        rate = _last_valid_close(df)
+        if rate is None:
+            raise ValueError(f"No exchange rate found for {ticker} on {date}")
+        return rate[0]
 
     def search_assets(self, query: str) -> list[dict[str, Any]]:
         result = yf.Search(query)
